@@ -1,0 +1,380 @@
+/* ============================================================
+   MRCS — Internal Review Light Theme
+   All internal pages include this file; it overrides the dark
+   CSS variables and resets surface/text colours to light.
+   ============================================================ */
+
+/* ── CSS variable overrides ── */
+:root {
+  --col-bg:          #eef1f7;
+  --col-surface:     #ffffff;
+  --col-surface-alt: #f4f7fb;
+  --col-card:        #ffffff;
+  --col-border:      #d5dce8;
+  --col-text:        #1a2540;
+  --col-head:        #1a2540;
+  --col-text-inv:    #ffffff;
+  --col-muted:       #6b7898;
+  --col-accent:      #0077cc;
+  --col-accent-hov:  #005fa3;
+  --col-accent2:     #0097a7;
+  --col-success:     #1a9e5c;
+  --col-warning:     #d97706;
+  --col-warn:        #d97706;
+  --col-danger:      #dc2626;
+  --col-shadow:      rgba(0, 0, 0, 0.08);
+}
+
+/* ── Reset body/page ── */
+html, body {
+  background: var(--col-bg);
+  color: var(--col-text);
+}
+
+/* ── Topbar (light) ── */
+.mrcs-topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--col-border);
+  box-shadow: 0 1px 4px var(--col-shadow);
+}
+
+.tb-brand-name { color: var(--col-accent); }
+.tb-mode-label { color: var(--col-muted); }
+
+.tb-tab {
+  color: var(--col-muted);
+}
+.tb-tab:hover {
+  color: var(--col-text);
+  background: var(--col-surface-alt);
+}
+.tb-tab--active {
+  color: var(--col-accent);
+  border-bottom-color: var(--col-accent);
+  background: transparent;
+}
+
+.tb-icon-btn {
+  color: var(--col-muted);
+}
+.tb-icon-btn:hover {
+  color: var(--col-text);
+  background: var(--col-surface-alt);
+}
+
+.tb-avatar {
+  background: var(--col-accent);
+  color: #fff;
+}
+
+.tb-user-name { color: var(--col-text); }
+.tb-user-role { color: var(--col-muted); }
+.tb-chevron   { color: var(--col-muted); }
+
+.tb-dropdown-menu {
+  background: #ffffff;
+  border: 1px solid var(--col-border);
+  box-shadow: 0 4px 16px var(--col-shadow);
+}
+.tb-dropdown-user-header { background: var(--col-surface-alt); }
+.tb-dropdown-name        { color: var(--col-text); }
+.tb-dropdown-role        { color: var(--col-muted); }
+.tb-dropdown-divider     { border-color: var(--col-border); }
+.tb-dropdown-item        { color: var(--col-text); }
+.tb-dropdown-item:hover  { background: var(--col-surface-alt); }
+.tb-dropdown-avatar      { background: var(--col-accent); color: #fff; }
+
+/* ── Sidebar (light) ── */
+.mrcs-sidebar {
+  background: #ffffff;
+  border-right: 1px solid var(--col-border);
+  box-shadow: 1px 0 4px var(--col-shadow);
+}
+
+.sb-section-label { color: var(--col-muted); }
+
+.sb-nav-item {
+  color: var(--col-text);
+}
+.sb-nav-item:hover {
+  background: var(--col-surface-alt);
+  color: var(--col-accent);
+}
+.sb-nav-item--active {
+  background: #e8f0fc;
+  color: var(--col-accent);
+}
+.sb-nav-item--active svg { stroke: var(--col-accent); }
+
+.sb-mode-toggle {
+  background: var(--col-surface-alt);
+  border: 1px solid var(--col-border);
+}
+.sb-mode-btn {
+  color: var(--col-muted);
+}
+.sb-mode-btn.active-mode {
+  background: var(--col-accent);
+  color: #fff;
+}
+.sb-mode-btn:hover:not(.active-mode):not(.sb-mode-disabled) {
+  background: var(--col-border);
+  color: var(--col-text);
+}
+.sb-mode-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sb-hamburger {
+  color: var(--col-text);
+}
+.sb-hamburger:hover { background: var(--col-surface-alt); }
+
+.sb-footer { border-top: 1px solid var(--col-border); }
+.sb-footer-text { color: var(--col-muted); }
+
+/* ── Page hero / main ── */
+.hero {
+  background: var(--col-bg);
+}
+.hero::before, .hero::after, .orb { display: none; }
+
+/* ── Form cards ── */
+.form-card {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  box-shadow: 0 2px 8px var(--col-shadow);
+}
+
+/* ── Buttons ── */
+.mrcs-btn {
+  background: var(--col-accent);
+  color: #ffffff;
+  border: none;
+}
+.mrcs-btn:hover {
+  background: var(--col-accent-hov);
+}
+
+/* ── Inputs & selects ── */
+input, select, textarea {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  color: var(--col-text);
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--col-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0,119,204,0.15);
+}
+input::placeholder { color: var(--col-muted); }
+
+/* ── Tables ── */
+.summary-table th {
+  background: var(--col-surface-alt);
+  color: var(--col-muted);
+  border-bottom: 1px solid var(--col-border);
+}
+.summary-table td {
+  border-bottom: 1px solid var(--col-border);
+  color: var(--col-text);
+}
+.summary-table tr:hover td { background: #f0f5ff; }
+
+.employee-table .employee-header {
+  background: var(--col-surface-alt);
+  color: var(--col-muted);
+}
+.employee-row { border-bottom: 1px solid var(--col-border); color: var(--col-text); }
+.employee-row:hover { background: #f0f5ff; }
+
+/* ── Section titles ── */
+.init-section-title { color: var(--col-text); }
+.employee-title     { color: var(--col-text); }
+
+/* ── Summary cards (Tag Status) ── */
+.summary-card {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  box-shadow: 0 1px 4px var(--col-shadow);
+}
+.card-title { color: var(--col-muted); }
+.card-value { color: var(--col-text); }
+
+/* ── Progress bar ── */
+.progress-container { background: var(--col-surface); border: 1px solid var(--col-border); }
+.progress-bar       { background: var(--col-surface-alt); }
+
+/* ── Modal overlays ── */
+.modal-overlay { background: rgba(0,0,0,0.35); }
+.modal-card, .modal-box {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  color: var(--col-text);
+  box-shadow: 0 8px 32px var(--col-shadow);
+}
+
+/* ── Footer ── */
+.footer {
+  background: #ffffff;
+  border-top: 1px solid var(--col-border);
+  color: var(--col-muted);
+}
+.footer a { color: var(--col-accent); }
+
+/* ── Internal dashboard review cards ── */
+.int-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.int-review-card {
+  background: var(--col-surface);
+  border: 1px solid var(--col-border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  box-shadow: 0 2px 8px var(--col-shadow);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.int-review-card:hover {
+  box-shadow: 0 4px 16px rgba(0,119,204,0.12);
+  transform: translateY(-1px);
+}
+.int-review-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--col-text);
+  margin-bottom: 6px;
+}
+.int-review-card-meta {
+  font-size: 11px;
+  color: var(--col-muted);
+  margin-bottom: 12px;
+}
+.int-review-card-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--col-surface-alt);
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.int-review-card-fill {
+  height: 100%;
+  background: var(--col-accent);
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+.int-review-card-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--col-muted);
+}
+.int-review-card-stats strong { color: var(--col-text); }
+
+.int-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--col-muted);
+  font-size: 14px;
+}
+.int-empty-state svg {
+  stroke: var(--col-border);
+  margin-bottom: 12px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── JE / LE pages: override hardcoded rgba dark backgrounds from jobengineer2.css / leadengineer2.css ── */
+
+/* Control-bar review picker and any form-group input/select */
+.form-group label {
+  color: var(--col-muted) !important;
+}
+.form-group input,
+.form-group select {
+  background: var(--col-surface) !important;
+  color: var(--col-text) !important;
+  border-color: var(--col-border) !important;
+}
+.form-group select option {
+  background: var(--col-surface) !important;
+  color: var(--col-text) !important;
+}
+/* High-specificity fallback for the LE review picker */
+#reviewPicker {
+  background: var(--col-surface) !important;
+  color: var(--col-text) !important;
+  border: 1px solid var(--col-border) !important;
+}
+
+/* Top-row inputs + selects (Tag No search, Model Name, View Name, Zone, Status, Date) */
+.td-item input[type="text"],
+.td-item input[type="date"],
+.td-item select {
+  background: var(--col-surface);
+  color: var(--col-text);
+  border-color: var(--col-border);
+}
+
+/* Readonly top-row inputs (Model Name, View Name, Date) */
+.td-item input[readonly],
+.td-item input[readonly]:focus {
+  background: var(--col-surface-alt);
+  color: var(--col-muted);
+  border-color: var(--col-border);
+  box-shadow: none;
+}
+
+/* Description / Resolution textareas */
+.tag-detail-descriptions .desc textarea {
+  background: var(--col-surface);
+  color: var(--col-text);
+  border-color: var(--col-border);
+}
+
+/* Description textarea (readonly) */
+.tag-detail-descriptions .desc textarea[readonly] {
+  background: var(--col-surface-alt);
+  color: var(--col-muted);
+  border-color: var(--col-border);
+  cursor: default;
+}
+
+/* JE mini-dashboard summary items */
+.je-summary-item {
+  background: var(--col-surface);
+  border-color: var(--col-border);
+}
+.je-summary-label { color: var(--col-muted); }
+
+/* Tag arrows */
+.tag-arrow {
+  background: var(--col-surface);
+  border-color: var(--col-border);
+  color: var(--col-text);
+}
+.tag-arrow:hover:not(:disabled) {
+  background: var(--col-surface-alt);
+  border-color: var(--col-accent);
+  color: var(--col-accent);
+}
+.tag-arrow:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Image frames: override hardcoded dark background */
+.img-frame {
+  background: var(--col-surface-alt);
+  border-color: var(--col-border);
+}
+
+/* Tag points table rows */
+.tagpoints-row { border-bottom: 1px solid var(--col-border); color: var(--col-text); }
+.tagpoints-row:hover { background: #f0f5ff; }
+.tagpoints-header { background: var(--col-surface-alt); color: var(--col-muted); }

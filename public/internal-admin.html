@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>MRCS — Internal Administration</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/leadengineer2.css"/>
+  <link rel="stylesheet" href="css/navbar.css"/>
+  <link rel="stylesheet" href="css/internal.css"/>
+  <style>
+    /* ── Summary stat cards ── */
+    .adm-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 1100px) { .adm-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px)  { .adm-stat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .adm-stat {
+      background: var(--col-surface);
+      border: 1px solid var(--col-border);
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: 0 1px 4px var(--col-shadow);
+    }
+    .adm-stat-label { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--col-muted); }
+    .adm-stat-val   { font-size: 30px; font-weight: 700; color: var(--col-text); margin-top: 6px; line-height: 1; }
+    .adm-stat.approved .adm-stat-val { color: var(--col-success); }
+    .adm-stat.pending  .adm-stat-val { color: var(--col-warning); }
+    .adm-stat.rejected .adm-stat-val { color: var(--col-danger);  }
+
+    /* ── Progress bar ── */
+    .adm-progress-row { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    .adm-progress-label { font-size: 12px; color: var(--col-muted); white-space: nowrap; }
+    .adm-progress-track { flex: 1; height: 8px; border-radius: 4px; background: var(--col-surface-alt); border: 1px solid var(--col-border); overflow: hidden; }
+    .adm-progress-fill  { height: 100%; background: var(--col-success); border-radius: 4px; transition: width 0.4s; }
+    .adm-progress-pct   { font-size: 13px; font-weight: 700; color: var(--col-text); min-width: 44px; text-align: right; }
+
+    /* ── Section title ── */
+    .adm-sec-title {
+      font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--col-muted); margin-bottom: 12px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--col-border);
+    }
+
+    /* ── Tables ── */
+    .adm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .adm-table th {
+      background: var(--col-surface-alt);
+      color: var(--col-muted);
+      font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--col-border);
+      text-align: left;
+    }
+    .adm-table td { padding: 9px 14px; border-bottom: 1px solid var(--col-border); color: var(--col-text); }
+    .adm-table tr:last-child td { border-bottom: none; }
+    .adm-table tr:hover td { background: #f0f5ff; }
+
+    /* ── Status badges ── */
+    .rs { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .rs-approved    { background: #dcfce7; color: #166534; }
+    .rs-submitted   { background: #fef3c7; color: #92400e; }
+    .rs-rejected    { background: #fee2e2; color: #991b1b; }
+    .rs-saved       { background: #e0e7ff; color: #3730a3; }
+    .rs-notstarted  { background: #f1f5f9; color: #64748b; }
+
+    /* ── Mini progress bar (dept table) ── */
+    .mini-bar-wrap { display: flex; align-items: center; gap: 6px; min-width: 100px; }
+    .mini-bar { flex: 1; height: 5px; border-radius: 3px; background: var(--col-surface-alt); overflow: hidden; }
+    .mini-bar-fill { height: 100%; background: var(--col-success); border-radius: 3px; }
+    .mini-pct { font-size: 11px; color: var(--col-muted); white-space: nowrap; }
+
+    /* ── CRS section ── */
+    .crs-card { padding: 28px 24px; }
+    .crs-desc { font-size: 13px; color: var(--col-muted); margin-bottom: 20px; line-height: 1.6; }
+    .crs-status-box {
+      padding: 12px 16px; border-radius: 6px; font-size: 13px;
+      margin-bottom: 20px; display: none;
+    }
+    .crs-status-box.ok   { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .crs-status-box.warn { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .crs-status-box.err  { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .crs-btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── Tag search ── */
+    .tag-search-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+    .tag-search-input {
+      padding: 6px 10px; border: 1px solid var(--col-border); border-radius: 4px;
+      font-size: 12px; background: var(--col-surface) !important; color: var(--col-text) !important;
+      width: 200px;
+    }
+    .tag-search-input::placeholder { color: var(--col-muted); }
+    .tag-search-input:focus { border-color: var(--col-accent); outline: none; box-shadow: 0 0 0 2px rgba(0,119,204,.15); }
+
+    /* ── Control bar ── */
+    .adm-control { padding: 12px 20px; margin-top: 12px; }
+    .adm-control-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+    .btn-success { background: var(--col-success) !important; }
+    .btn-success:hover { background: #15803d !important; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <!-- Control bar -->
+    <div class="form-card adm-control">
+      <div class="adm-control-row">
+        <div class="form-group" style="flex:2;min-width:220px;">
+          <label>Select Internal Review</label>
+          <select id="adminReviewPicker"></select>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button id="loadStatusBtn" class="mrcs-btn">Load Status</button>
+          <button id="checkCRSBtn" class="mrcs-btn">Check CRS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAG STATUS SECTION ===== -->
+    <div id="statusSection" style="display:none;">
+
+      <!-- Stat cards + progress -->
+      <div style="padding:16px 0 0;">
+        <div class="adm-stat-grid">
+          <div class="adm-stat">
+            <div class="adm-stat-label">Total Tags</div>
+            <div class="adm-stat-val" id="stTotal">—</div>
+          </div>
+          <div class="adm-stat approved">
+            <div class="adm-stat-label">Approved</div>
+            <div class="adm-stat-val" id="stApproved">—</div>
+          </div>
+          <div class="adm-stat pending">
+            <div class="adm-stat-label">Pending Approval</div>
+            <div class="adm-stat-val" id="stPending">—</div>
+          </div>
+          <div class="adm-stat rejected">
+            <div class="adm-stat-label">Rejected</div>
+            <div class="adm-stat-val" id="stRejected">—</div>
+          </div>
+          <div class="adm-stat">
+            <div class="adm-stat-label">Draft</div>
+            <div class="adm-stat-val" id="stDraft">—</div>
+          </div>
+          <div class="adm-stat">
+            <div class="adm-stat-label">Not Started</div>
+            <div class="adm-stat-val" id="stNotStarted">—</div>
+          </div>
+        </div>
+
+        <div class="adm-progress-row">
+          <span class="adm-progress-label">Overall Approval Progress</span>
+          <div class="adm-progress-track">
+            <div class="adm-progress-fill" id="stProgressFill" style="width:0%"></div>
+          </div>
+          <span class="adm-progress-pct" id="stProgressPct">0%</span>
+        </div>
+      </div>
+
+      <!-- Department breakdown -->
+      <div class="form-card" style="padding:20px;margin-bottom:16px;">
+        <div class="adm-sec-title">Department Breakdown</div>
+        <div style="overflow-x:auto;">
+          <table class="adm-table">
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Total</th>
+                <th>Not Started</th>
+                <th>Draft</th>
+                <th>Pending Approval</th>
+                <th>Approved</th>
+                <th>Rejected</th>
+                <th>Progress</th>
+              </tr>
+            </thead>
+            <tbody id="deptBody">
+              <tr><td colspan="8" style="text-align:center;color:var(--col-muted);padding:20px;">No data.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Full tag list -->
+      <div class="form-card" style="padding:20px;margin-bottom:16px;">
+        <div class="tag-search-bar">
+          <div class="adm-sec-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">All Tags</div>
+          <input type="text" id="tagSearch" class="tag-search-input" placeholder="Search tag no, zone, dept…">
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="adm-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tag No</th>
+                <th>Zone</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Review Date</th>
+              </tr>
+            </thead>
+            <tbody id="tagBody">
+              <tr><td colspan="6" style="text-align:center;color:var(--col-muted);padding:20px;">No tags.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CRS REPORT SECTION ===== -->
+    <div id="crsSection" style="display:none;">
+      <div class="form-card crs-card">
+        <div class="adm-sec-title">CRS Report Generation</div>
+        <p class="crs-desc">
+          The CRS (Comments Resolution Sheet) PDF includes all <strong>approved</strong> tags for the
+          selected internal review. All tags must be approved before a complete report can be generated.
+          If unapproved tags remain, the report will be blocked — resolve them first via the
+          Lead Engineer review page.
+        </p>
+
+        <div class="crs-status-box" id="crsStatusBox"></div>
+
+        <div class="crs-btn-row">
+          <button id="downloadCRSBtn" class="mrcs-btn btn-success" style="display:none;">
+            &#11015;&nbsp; Download CRS Report (PDF)
+          </button>
+          <button id="reloadCRSBtn" class="mrcs-btn" style="background:var(--col-surface-alt);color:var(--col-text);border:1px solid var(--col-border);">
+            &#8635;&nbsp; Re-check Status
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer" style="padding:12px 28px;font-size:12px;display:flex;justify-content:space-between;">
+      <div><a href="#">EIL</a> &nbsp;•&nbsp; <a href="#">MRCS</a></div>
+      <div>Internal Operations Mode</div>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/internal-navbar.js"></script>
+  <script src="js/header.js"></script>
+
+  <script>
+  /* ── Piping LE / GL guard ── */
+  (function () {
+    var role = localStorage.getItem('role') || '';
+    var adminDept = (localStorage.getItem('department') || '').toLowerCase();
+    if (adminDept !== 'piping' || !['LE','GL'].includes(role)) {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#64748b;">Access restricted — Piping LE / GL only.</div>';
+    }
+  })();
+
+  var adminJobNo = '', adminUnitNo = '', adminStage = '';
+  var allTagRows = [];
+
+  function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  }
+
+  /* ── Review picker ── */
+  (async function initPicker() {
+    try {
+      var data = await apiFetch('/api/internal/dropdown');
+      var sel  = document.getElementById('adminReviewPicker');
+      sel.innerHTML = '<option value="">— Select Internal Review —</option>'
+        + (data.options || []).map(function (o) {
+            return '<option value="' + esc(o.job_no) + '|' + esc(o.unit_no) + '|' + esc(o.stage) + '">'
+              + esc(o.job_no) + ' / ' + esc(o.unit_no) + ' / ' + esc(o.stage) + '</option>';
+          }).join('');
+      sel.addEventListener('change', function () {
+        if (!this.value) {
+          adminJobNo = adminUnitNo = adminStage = '';
+          document.getElementById('statusSection').style.display = 'none';
+          document.getElementById('crsSection').style.display    = 'none';
+          return;
+        }
+        var p = this.value.split('|');
+        adminJobNo = p[0]; adminUnitNo = p[1]; adminStage = p[2];
+        document.getElementById('statusSection').style.display = 'none';
+        document.getElementById('crsSection').style.display    = 'none';
+      });
+    } catch (e) { console.error(e); }
+  })();
+
+  /* ── Load Status ── */
+  document.getElementById('loadStatusBtn').addEventListener('click', async function () {
+    if (!adminJobNo || !adminUnitNo || !adminStage) { alert('Select a review first.'); return; }
+    this.textContent = 'Loading…'; this.disabled = true;
+    try {
+      var data = await apiFetch(
+        '/api/internal/admin/tag-status?jobNo=' + encodeURIComponent(adminJobNo)
+        + '&unitNo=' + encodeURIComponent(adminUnitNo)
+        + '&stage='  + encodeURIComponent(adminStage)
+      );
+      allTagRows = data.tags || [];
+      renderSummary(data.summary);
+      renderDeptTable(data.departments);
+      renderTagTable(allTagRows);
+      document.getElementById('statusSection').style.display = '';
+      document.getElementById('crsSection').style.display    = 'none';
+    } catch (e) { alert('Load failed: ' + e.message); }
+    finally { this.textContent = 'Load Status'; this.disabled = false; }
+  });
+
+  /* ── Check CRS ── */
+  document.getElementById('checkCRSBtn').addEventListener('click', checkCRS);
+  document.getElementById('reloadCRSBtn').addEventListener('click', checkCRS);
+
+  async function checkCRS() {
+    if (!adminJobNo || !adminUnitNo || !adminStage) { alert('Select a review first.'); return; }
+    document.getElementById('crsSection').style.display = '';
+    document.getElementById('statusSection').style.display = 'none';
+
+    var box     = document.getElementById('crsStatusBox');
+    var dlBtn   = document.getElementById('downloadCRSBtn');
+    box.style.display = 'block';
+    box.className = 'crs-status-box';
+    box.textContent = 'Checking tag approval status…';
+    dlBtn.style.display = 'none';
+
+    try {
+      var data = await apiFetch(
+        '/api/internal/admin/tag-status?jobNo=' + encodeURIComponent(adminJobNo)
+        + '&unitNo=' + encodeURIComponent(adminUnitNo)
+        + '&stage='  + encodeURIComponent(adminStage)
+      );
+      var s        = data.summary;
+      var total    = parseInt(s.total)    || 0;
+      var approved = parseInt(s.approved) || 0;
+      var pending  = parseInt(s.pending_approval) || 0;
+      var rejected = parseInt(s.rejected) || 0;
+      var notDone  = total - approved;
+
+      if (total === 0) {
+        box.className   = 'crs-status-box warn';
+        box.textContent = 'No tags found for this internal review. Upload and lock tags first.';
+      } else if (notDone === 0) {
+        box.className   = 'crs-status-box ok';
+        box.innerHTML   = '&#10003; All ' + total + ' tags are approved. You can generate the CRS report.';
+        dlBtn.style.display = '';
+      } else {
+        box.className = 'crs-status-box warn';
+        box.innerHTML = pending + ' tag(s) pending approval, '
+          + rejected + ' rejected, '
+          + (parseInt(s.not_started) + parseInt(s.draft)) + ' not yet submitted. '
+          + 'All tags must be approved before generating a complete CRS report.';
+      }
+    } catch (e) {
+      box.className   = 'crs-status-box err';
+      box.textContent = 'Failed to check status: ' + e.message;
+    }
+  }
+
+  /* ── Download CRS ── */
+  document.getElementById('downloadCRSBtn').addEventListener('click', function () {
+    var url = '/api/report/generate-pdf'
+      + '?job='        + encodeURIComponent(adminJobNo)
+      + '&unit='       + encodeURIComponent(adminUnitNo)
+      + '&stage='      + encodeURIComponent(adminStage)
+      + '&reviewType=internal';
+    window.open(url, '_blank');
+  });
+
+  /* ── Render helpers ── */
+  function renderSummary(s) {
+    var total    = parseInt(s.total)    || 0;
+    var approved = parseInt(s.approved) || 0;
+    document.getElementById('stTotal').textContent      = total;
+    document.getElementById('stApproved').textContent   = approved;
+    document.getElementById('stPending').textContent    = s.pending_approval || 0;
+    document.getElementById('stRejected').textContent   = s.rejected  || 0;
+    document.getElementById('stDraft').textContent      = s.draft      || 0;
+    document.getElementById('stNotStarted').textContent = s.not_started || 0;
+    var pct = total > 0 ? Math.round(approved / total * 100) : 0;
+    document.getElementById('stProgressFill').style.width = pct + '%';
+    document.getElementById('stProgressPct').textContent  = pct + '%';
+  }
+
+  function renderDeptTable(depts) {
+    var tbody = document.getElementById('deptBody');
+    if (!depts || !depts.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--col-muted);padding:20px;">No department data.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = depts.map(function (d) {
+      var total    = parseInt(d.total)    || 0;
+      var approved = parseInt(d.approved) || 0;
+      var pct      = total > 0 ? Math.round(approved / total * 100) : 0;
+      return '<tr>'
+        + '<td><strong>' + esc((d.department || '—').toUpperCase()) + '</strong></td>'
+        + '<td>' + (d.total || 0) + '</td>'
+        + '<td>' + (d.not_started || 0) + '</td>'
+        + '<td>' + (d.draft || 0) + '</td>'
+        + '<td>' + (d.pending_approval || 0) + '</td>'
+        + '<td style="color:var(--col-success);font-weight:600;">' + (d.approved || 0) + '</td>'
+        + '<td style="color:var(--col-danger);">' + (d.rejected || 0) + '</td>'
+        + '<td><div class="mini-bar-wrap"><div class="mini-bar"><div class="mini-bar-fill" style="width:' + pct + '%"></div></div><span class="mini-pct">' + pct + '%</span></div></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function rsBadge(s) {
+    var map = {
+      'APPROVED':    ['rs rs-approved',   'Approved'],
+      'SUBMITTED':   ['rs rs-submitted',  'Pending Approval'],
+      'REJECTED':    ['rs rs-rejected',   'Rejected'],
+      'SAVED':       ['rs rs-saved',      'Draft'],
+      'NOT_STARTED': ['rs rs-notstarted', 'Not Started'],
+    };
+    var info = map[s] || ['rs rs-notstarted', 'Not Started'];
+    return '<span class="' + info[0] + '">' + info[1] + '</span>';
+  }
+
+  function renderTagTable(rows) {
+    var tbody = document.getElementById('tagBody');
+    if (!rows || !rows.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--col-muted);padding:20px;">No tags found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(function (t, i) {
+      return '<tr>'
+        + '<td style="color:var(--col-muted);">' + (i + 1) + '</td>'
+        + '<td><strong>' + esc(t.tag_no) + '</strong></td>'
+        + '<td>' + esc(t.zone || '—') + '</td>'
+        + '<td>' + esc((t.department || '—').toUpperCase()) + '</td>'
+        + '<td>' + rsBadge(t.resolution_status || 'NOT_STARTED') + '</td>'
+        + '<td>' + fmtDate(t.tag_date) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('tagSearch').addEventListener('input', function () {
+    var q = this.value.toLowerCase();
+    var filtered = allTagRows.filter(function (t) {
+      return (t.tag_no     || '').toLowerCase().includes(q)
+          || (t.zone       || '').toLowerCase().includes(q)
+          || (t.department || '').toLowerCase().includes(q);
+    });
+    renderTagTable(filtered);
+  });
+  </script>
+</body>
+</html>

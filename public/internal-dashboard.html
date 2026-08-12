@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MRCS — Internal Review Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="css/navbar.css" />
+    <link rel="stylesheet" href="css/internal.css" />
+    <style>
+        /* ── page layout ── */
+        .page-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .hero {
+            flex: 1;
+            padding: 32px 28px;
+        }
+
+        /* ── page header ── */
+        .int-page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+        .int-page-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--col-text);
+        }
+        .int-page-subtitle {
+            font-size: 12px;
+            color: var(--col-muted);
+            margin-top: 2px;
+        }
+
+        /* ── stats row ── */
+        .int-stats-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .int-stat-card {
+            flex: 1;
+            min-width: 140px;
+            background: var(--col-surface);
+            border: 1px solid var(--col-border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 1px 4px var(--col-shadow);
+        }
+        .int-stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--col-muted);
+            margin-bottom: 6px;
+        }
+        .int-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--col-text);
+        }
+        .int-stat-card.accent  .int-stat-value { color: var(--col-accent); }
+        .int-stat-card.success .int-stat-value { color: var(--col-success); }
+        .int-stat-card.warning .int-stat-value { color: var(--col-warning); }
+
+        /* ── filter bar ── */
+        .int-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .int-filter-bar select,
+        .int-filter-bar input[type="text"] {
+            padding: 7px 12px;
+            border: 1px solid var(--col-border);
+            border-radius: 4px;
+            font-size: 13px;
+            background: var(--col-surface);
+            color: var(--col-text);
+            min-width: 160px;
+        }
+        .int-filter-bar select:focus,
+        .int-filter-bar input[type="text"]:focus {
+            outline: none;
+            border-color: var(--col-accent);
+            box-shadow: 0 0 0 2px rgba(0,119,204,0.12);
+        }
+        .int-section-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--col-muted);
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page-wrapper">
+
+        <main class="hero">
+
+            <div class="int-page-header">
+                <div>
+                    <div class="int-page-title">Internal Review Dashboard</div>
+                    <div class="int-page-subtitle">Track your internal model review assignments and progress</div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="int-stats-row">
+                <div class="int-stat-card accent">
+                    <div class="int-stat-label">Assigned Reviews</div>
+                    <div class="int-stat-value" id="statAssigned">—</div>
+                </div>
+                <div class="int-stat-card">
+                    <div class="int-stat-label">Total Tags</div>
+                    <div class="int-stat-value" id="statTotal">—</div>
+                </div>
+                <div class="int-stat-card success">
+                    <div class="int-stat-label">Completed</div>
+                    <div class="int-stat-value" id="statCompleted">—</div>
+                </div>
+                <div class="int-stat-card warning">
+                    <div class="int-stat-label">Pending</div>
+                    <div class="int-stat-value" id="statPending">—</div>
+                </div>
+            </div>
+
+            <!-- Review cards -->
+            <div class="int-section-label">Your Assigned Reviews</div>
+
+            <div class="int-filter-bar">
+                <input type="text" id="intSearchInput" placeholder="Search by job / unit..." />
+                <select id="intStatusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="not_started">Not Started</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+
+            <div id="intReviewGrid" class="int-review-grid">
+                <div class="int-empty-state">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                    Loading reviews…
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="footer" style="padding:12px 28px; font-size:12px; display:flex; justify-content:space-between;">
+            <div><a href="#">EIL</a> &nbsp;•&nbsp; <a href="#">MRCS</a></div>
+            <div>Internal Operations Mode</div>
+        </footer>
+
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/internal-navbar.js"></script>
+    <script src="js/header.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', async function () {
+        try {
+            var data = await apiFetch('/api/internal/reviews');
+            renderDashboard(data);
+        } catch (err) {
+            document.getElementById('intReviewGrid').innerHTML =
+                '<div class="int-empty-state">No internal reviews assigned yet.</div>';
+        }
+    });
+
+    function renderDashboard(data) {
+        var reviews = data.reviews || [];
+        var grid = document.getElementById('intReviewGrid');
+
+        document.getElementById('statAssigned').textContent  = reviews.length;
+        var total     = reviews.reduce(function (s, r) { return s + (r.total     || 0); }, 0);
+        var completed = reviews.reduce(function (s, r) { return s + (r.completed || 0); }, 0);
+        document.getElementById('statTotal').textContent     = total;
+        document.getElementById('statCompleted').textContent = completed;
+        document.getElementById('statPending').textContent   = total - completed;
+
+        if (!reviews.length) {
+            grid.innerHTML = '<div class="int-empty-state">'
+                + '<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>'
+                + 'No internal reviews assigned yet.</div>';
+            return;
+        }
+
+        grid.innerHTML = reviews.map(function (r) {
+            var pct = r.total > 0 ? Math.round((r.completed / r.total) * 100) : 0;
+            return '<div class="int-review-card">'
+                + '<div class="int-review-card-title">' + esc(r.job_no) + ' / ' + esc(r.unit_no) + '</div>'
+                + '<div class="int-review-card-meta">Stage: ' + esc(r.stage || '—') + (r.linked_review ? ' &nbsp;·&nbsp; Linked to: ' + esc(r.linked_review) : '') + '</div>'
+                + '<div class="int-review-card-progress"><div class="int-review-card-fill" style="width:' + pct + '%"></div></div>'
+                + '<div class="int-review-card-stats">'
+                + '<span><strong>' + pct + '%</strong> complete</span>'
+                + '<span><strong>' + (r.completed || 0) + '</strong> / ' + (r.total || 0) + ' tags</span>'
+                + (r.pending_approval > 0 ? '<span><strong>' + r.pending_approval + '</strong> pending approval</span>' : '')
+                + '</div>'
+                + '</div>';
+        }).join('');
+
+        /* search / filter */
+        document.getElementById('intSearchInput').addEventListener('input', filterCards);
+        document.getElementById('intStatusFilter').addEventListener('change', filterCards);
+
+        function filterCards() {
+            var q   = document.getElementById('intSearchInput').value.toLowerCase();
+            var st  = document.getElementById('intStatusFilter').value;
+            document.querySelectorAll('.int-review-card').forEach(function (card, i) {
+                var r = reviews[i];
+                var matchQ  = !q || (r.job_no + ' ' + r.unit_no).toLowerCase().includes(q);
+                var matchSt = !st || getStatus(r) === st;
+                card.style.display = (matchQ && matchSt) ? '' : 'none';
+            });
+        }
+
+        function getStatus(r) {
+            if (!r.total || r.total === 0)     return 'not_started';
+            if (r.completed === r.total)        return 'completed';
+            return 'in_progress';
+        }
+    }
+
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    </script>
+
+</body>
+</html>

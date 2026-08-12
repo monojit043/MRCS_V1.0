@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCS — Upload &amp; Finalize</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/uploadandfinalization5.css" />
+  <link rel="stylesheet" href="css/navbar.css" />
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+
+    <main class="hero">
+      <div class="orb orb-left"></div>
+      <div class="orb orb-right"></div>
+      <div class="orb orb-right-small"></div>
+
+      <!-- ===== PANEL: UPLOAD (existing, as-is) ===== -->
+      <div id="panelUpload">
+
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Select Model Review</label>
+              <select id="reviewPicker"></select>
+            </div>
+          </div>
+          <input type="hidden" id="ufJobNo">
+          <input type="hidden" id="ufUnitNo">
+          <input type="hidden" id="ufStage">
+        </div>
+
+        <div class="upload-container">
+
+          <div class="form-card upload-card">
+            <div class="upload-title">Upload Folder</div>
+            <div class="upload-dropzone" id="dropzone">
+              <div class="upload-icons"></div>
+              <p class="upload-text">Drag and drop files here, or your computer.</p>
+              <input type="file" id="uploadInput" webkitdirectory directory multiple hidden>
+            </div>
+          </div>
+
+          <div class="form-card upload-card">
+            <div class="upload-title">Uploaded folders</div>
+            <div class="uploaded-table-container">
+              <table class="uploaded-table">
+                <thead>
+                  <tr>
+                    <th>Sl No</th>
+                    <th>Folder Name</th>
+                    <th>No of Tags</th>
+                    <th>Uploaded By</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="form-card tag-details-card">
+          <div class="upload-title">Tag Details</div>
+          <div class="tag-search-container">
+            <input type="text" id="tagSearchInput" placeholder="Search Tag No / Description / View / Department..."
+              class="tag-search-input" />
+          </div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead>
+                <tr>
+                  <th>Sl No</th>
+                  <th>Tag No</th>
+                  <th>Tag Description</th>
+                  <th>Tag Taken Date</th>
+                  <th>View</th>
+                  <th>Snap</th>
+                  <th>Tag to be Resolved By</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="action-buttons">
+            <button class="btn-save" id="uploadSaveBtn">Save</button>
+          </div>
+        </div>
+
+      </div><!-- /panelUpload -->
+
+      <!-- ===== PANEL: TAG FINALIZATION ===== -->
+      <div id="panelFinalization" style="display:none;">
+
+        <!-- Review picker -->
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Select Model Review</label>
+              <select id="finReviewPicker"></select>
+            </div>
+          </div>
+          <input type="hidden" id="finJobNo">
+          <input type="hidden" id="finUnitNo">
+          <input type="hidden" id="finStage">
+        </div>
+
+        <!-- Per-tag allocation table -->
+        <div class="form-card tag-details-card" id="finTagDetailsCard" style="display:none;">
+          <div class="upload-title">Tag Allocation / Reallocation</div>
+          <div class="tag-search-container">
+            <input type="text" id="finTagSearchInput" placeholder="Search Tag No / Description / View / Department..."
+              class="tag-search-input" />
+          </div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead>
+                <tr>
+                  <th>Sl No</th>
+                  <th>Tag No</th>
+                  <th>Tag Description</th>
+                  <th>Tag Taken Date</th>
+                  <th>View</th>
+                  <th>Snap</th>
+                  <th>Status</th>
+                  <th>Tag to be Resolved By</th>
+                </tr>
+              </thead>
+              <tbody id="finTagBody"></tbody>
+            </table>
+          </div>
+          <div class="action-buttons">
+            <button class="btn-save" id="finSaveBtn">Save Allocations</button>
+          </div>
+        </div>
+
+        <!-- Department allocation summary -->
+        <div class="form-card" id="finTagCard" style="display:none;">
+          <div class="upload-title">Department Tag Allocation Summary</div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead>
+                <tr>
+                  <th>Sl No</th>
+                  <th>Department</th>
+                  <th>Tags Allocated</th>
+                </tr>
+              </thead>
+              <tbody id="finSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /panelFinalization -->
+
+      <!-- ===== PANEL: EXPORT ALL TAGS ===== -->
+      <div id="panelExport" style="display:none;">
+
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Select Model Review</label>
+              <select id="exportReviewPicker"></select>
+            </div>
+          </div>
+          <input type="hidden" id="exportJobNo">
+          <input type="hidden" id="exportUnitNo">
+          <input type="hidden" id="exportStage">
+        </div>
+
+        <div class="form-card" id="exportActionCard" style="display:none;">
+          <div class="upload-title">Export All Tags</div>
+          <p style="color:var(--text-secondary,#aaa);font-size:13px;margin:0 0 18px;">
+            Downloads a PDF with every tag and its original snap image, regardless of allocation status.
+          </p>
+          <div class="action-buttons">
+            <button class="btn-save" id="exportTagsPdfBtn">&#128247; Export as PDF</button>
+          </div>
+        </div>
+
+      </div><!-- /panelExport -->
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="mailto:info@mysite.com">HELP</a>
+      </div>
+      <div class="footer-right">
+        <span>0124-289-1234</span> <span>|</span>
+        <span>EIL</span> <span>|</span>
+        <span>EIL</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Upload Loading Overlay -->
+  <div id="uploadOverlay" class="upload-overlay">
+    <div class="upload-spinner"></div>
+    <div class="upload-text">Uploading folder... Please wait</div>
+  </div>
+
+  <!-- RIGHT-CLICK CONTEXT MENU -->
+  <div id="tagContextMenu" class="context-menu">
+    <div class="context-menu-item" id="contextReassignBtn">&#8635; Reassign Departments</div>
+  </div>
+
+  <!-- REASSIGN MODAL -->
+  <div id="reassignModal" class="reassign-modal-overlay">
+    <div class="reassign-modal">
+      <div class="reassign-modal-header">
+        <span class="reassign-modal-title">Reassign Departments</span>
+        <span id="reassignTagLabel" class="reassign-tag-label"></span>
+      </div>
+      <div class="reassign-dept-grid" id="reassignDeptGrid"></div>
+      <div class="reassign-modal-actions">
+        <button id="confirmReassignBtn" class="btn-save">Confirm</button>
+        <button id="cancelReassignBtn" class="mrcs-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SNAP IMAGE MODAL -->
+  <div id="snapModal" class="snap-modal-overlay">
+    <div class="snap-modal">
+      <div class="snap-modal-header">
+        <span class="snap-modal-title">Original Snap</span>
+        <span id="snapModalTagNo" class="snap-modal-tagno"></span>
+        <button id="snapModalClose" class="snap-modal-close" title="Close">&times;</button>
+      </div>
+      <div class="snap-modal-body">
+        <img id="snapModalImg" src="" alt="Tag Snap" class="snap-modal-img" />
+        <div id="snapModalError" class="snap-modal-error" style="display:none;">Image not available for this tag.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/navbar.js"></script>
+  <script src="js/header.js"></script>
+  <script src="js/review-picker.js"></script>
+  <script src="js/upload-finalization.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Upload panel review picker
+      initReviewPicker("reviewPicker", (jobNo, unitNo, stage) => {
+        document.getElementById("ufJobNo").value = jobNo;
+        document.getElementById("ufUnitNo").value = unitNo;
+        document.getElementById("ufStage").value = stage;
+        loadTags();
+      });
+
+      // Finalization panel review picker
+      initReviewPicker("finReviewPicker", (jobNo, unitNo, stage) => {
+        document.getElementById("finJobNo").value = jobNo;
+        document.getElementById("finUnitNo").value = unitNo;
+        document.getElementById("finStage").value = stage;
+        loadFinTags();
+      });
+
+      // Export panel review picker
+      initReviewPicker("exportReviewPicker", (jobNo, unitNo, stage) => {
+        document.getElementById("exportJobNo").value = jobNo;
+        document.getElementById("exportUnitNo").value = unitNo;
+        document.getElementById("exportStage").value = stage;
+        document.getElementById("exportActionCard").style.display = "";
+      });
+
+      document.getElementById("exportTagsPdfBtn").addEventListener("click", function () {
+        const jobNo  = document.getElementById("exportJobNo").value;
+        const unitNo = document.getElementById("exportUnitNo").value;
+        const stage  = document.getElementById("exportStage").value;
+        if (!jobNo || !unitNo || !stage) {
+          alert("Please select a Model Review first.");
+          return;
+        }
+        window.open(
+          "/api/report/export-all-tags"
+          + "?jobNo="  + encodeURIComponent(jobNo)
+          + "&unitNo=" + encodeURIComponent(unitNo)
+          + "&stage="  + encodeURIComponent(stage)
+        );
+      });
+    });
+  </script>
+</body>
+
+</html>

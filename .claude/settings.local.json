@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d \"d:\\\\MRCStest\\\\backend\")",
+      "Bash(node -e \"const pool = require\\('./src/data/db'\\); pool.query\\(\\\\\"ALTER TABLE model_review_initiations ADD COLUMN IF NOT EXISTS review_type VARCHAR\\(10\\) NOT NULL DEFAULT 'INTERNAL' CHECK \\(review_type IN \\('INTERNAL', 'EXTERNAL'\\)\\)\\\\\"\\).then\\(\\(\\) => { console.log\\('Column added OK'\\); pool.end\\(\\); }\\).catch\\(e => { console.error\\(e.message\\); pool.end\\(\\); }\\);\")",
+      "Bash(dir uploads\\\\permanent /s /b)",
+      "PowerShell(Get-ChildItem \"d:\\\\MRCStest\\\\backend\\\\uploads\\\\permanent\" -Recurse -File | Select-Object -First 20 | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem \"d:\\\\MRCStest\\\\backend\\\\uploads\\\\permanent\" -Recurse -File | Select-Object -Last 20 | ForEach-Object { $_.FullName })"
+    ]
+  }
+}

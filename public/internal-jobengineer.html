@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>MRCS — Internal Job Engineer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/jobengineer2.css"/>
+  <link rel="stylesheet" href="css/navbar.css"/>
+  <link rel="stylesheet" href="css/internal.css"/>
+</head>
+<body>
+  <div class="page-wrapper">
+    <main class="hero">
+
+      <!-- Control bar -->
+      <div class="form-card je-control-bar">
+        <div class="je-cb-row">
+          <div class="form-group" style="flex:2;min-width:180px;">
+            <label>Select Internal Review</label>
+            <select id="reviewPicker"></select>
+          </div>
+          <div class="status-bar je-cb-status">
+            Status: <span id="jeStatusText">Waiting for selection</span>
+          </div>
+          <div class="form-buttons je-cb-buttons">
+            <button id="jeLoadBtn" class="mrcs-btn">Load Tags</button>
+          </div>
+        </div>
+        <input type="hidden" id="jobNoInput">
+        <input type="hidden" id="unitNoInput">
+        <input type="hidden" id="stageSelect">
+      </div>
+
+      <!-- Mini dashboard -->
+      <div class="je-summary-card">
+        <div class="je-summary-item"><div class="je-summary-label">Total</div><div id="jeTotal" class="je-summary-value">0</div></div>
+        <div class="je-summary-item"><div class="je-summary-label">Not Started</div><div id="jeNotStarted" class="je-summary-value gray">0</div></div>
+        <div class="je-summary-item"><div class="je-summary-label">Saved</div><div id="jeSaved" class="je-summary-value yellow">0</div></div>
+        <div class="je-summary-item"><div class="je-summary-label">Submitted</div><div id="jeSubmitted" class="je-summary-value blue">0</div></div>
+        <div class="je-summary-item"><div class="je-summary-label">Approved</div><div id="jeApproved" class="je-summary-value green">0</div></div>
+        <div class="je-summary-item"><div class="je-summary-label">Rejected</div><div id="jeRejected" class="je-summary-value red">0</div></div>
+      </div>
+
+      <!-- Tag detail card with arrows -->
+      <div class="tag-detail-wrapper">
+        <button class="tag-arrow tag-arrow-left" id="jePrevBtn">&#10094;</button>
+
+        <div class="form-card tag-detail-card">
+          <!-- Top row -->
+          <div class="tag-detail-toprow">
+            <div class="td-item">
+              <label>Tag No</label>
+              <input type="text" id="jeTagNo" placeholder="Search tag...">
+              <small id="jeTagMatchInfo" style="color:#94a3b8;"></small>
+            </div>
+            <div class="td-item">
+              <label>Model Name</label>
+              <input type="text" id="jeModelName" readonly>
+            </div>
+            <div class="td-item">
+              <label>View Name</label>
+              <input type="text" id="jeViewName" readonly>
+            </div>
+            <div class="td-item">
+              <label>Zone</label>
+              <select id="zoneFilter"><option value="ALL">All</option></select>
+            </div>
+            <div class="td-item">
+              <label>Status</label>
+              <select id="statusFilter">
+                <option value="ALL">All</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="SAVED">Saved</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+            <div class="td-item">
+              <label>Tag Date</label>
+              <input type="date" id="jeReviewDate" readonly>
+            </div>
+          </div>
+
+          <div class="je-navigation-info">
+            <span id="jePositionInfo">Tag 0 of 0</span>
+          </div>
+
+          <div class="tag-detail-headers">
+            <div class="hdr">Tag Description</div>
+            <div class="hdr">Resolution of Tag</div>
+          </div>
+
+          <div class="tag-detail-descriptions">
+            <div class="desc"><textarea id="jeDescription" readonly></textarea></div>
+            <div class="desc"><textarea id="jeResolution" placeholder="Enter resolution details…"></textarea></div>
+          </div>
+
+          <div class="tag-detail-images">
+            <div class="img-frame">
+              <div class="img-placeholder" id="jeOriginalSnap">No original snap</div>
+            </div>
+            <div class="img-frame">
+              <div class="img-placeholder" id="jeSnapPreview">No image selected</div>
+              <input type="file" accept="image/*" id="jeResolvedSnap" hidden>
+              <div class="img-btn-group">
+                <button type="button" class="mrcs-btn" id="jeUploadSnapBtn">Attach Image</button>
+                <button type="button" class="mrcs-btn danger" id="jeDeleteSnapBtn">Remove Image</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tag-detail-bottom">
+            <div class="tag-detail-actions">
+              <button class="mrcs-btn" id="jeSaveBtn">SAVE</button>
+              <button class="mrcs-btn" id="jeSubmitBtn">SUBMIT</button>
+            </div>
+          </div>
+
+          <div class="je-status">Status: <span id="jeResolutionStatus">NOT STARTED</span></div>
+
+          <button class="tag-arrow tag-arrow-right" id="jeNextBtn">&#10095;</button>
+        </div>
+      </div>
+
+      <!-- Table of Tag Points (collapsible) -->
+      <div class="form-card tagpoints-card">
+        <div class="tagpoints-header-bar">
+          <span class="tagpoints-title">Table of Tag Points</span>
+          <button id="tagToggleBtn" class="tag-toggle-btn">+</button>
+        </div>
+        <div id="tagpointsContent" class="tagpoints-content collapsed">
+          <div class="tagpoints-table">
+            <div class="tagpoints-row tagpoints-header">
+              <div>Sl No</div><div>Tag No</div><div>Tag Details</div>
+              <div>Zone</div><div>Model Name</div><div>Date</div>
+              <div>Resolution</div><div>Status</div><div>Go</div>
+            </div>
+            <div id="tagpointsBody"><div class="tagpoints-empty-msg">Load tags to view the table.</div></div>
+          </div>
+          <div class="tagpoints-search-footer">
+            <input type="text" id="tagSearchInput" placeholder="Search tag points…"/>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left"><a href="#">EIL</a> <span>•</span> <a href="#">MRCS</a></div>
+      <div class="footer-right">Internal Operations Mode</div>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/internal-navbar.js"></script>
+  <script src="js/header.js"></script>
+
+  <script>
+  /* ─────────────────────────────────────────────────────────
+     Internal Job Engineer — all logic inline
+     API calls: /api/internal/* for fetch, /api/tags/:id/* for mutations
+  ───────────────────────────────────────────────────────── */
+  var allTags=[], filteredTags=[], currentIdx=0;
+  var jobNo='', unitNo='', stage='';
+
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function encodePath(p){ return (p||'').split('/').map(encodeURIComponent).join('/'); }
+
+  /* ── Review picker ── */
+  (async function initPicker(){
+    try{
+      var data=await apiFetch('/api/internal/dropdown');
+      var sel=document.getElementById('reviewPicker');
+      sel.innerHTML='<option value="">— Select Internal Review —</option>'
+        +(data.options||[]).map(o=>`<option value="${esc(o.job_no)}|${esc(o.unit_no)}|${esc(o.stage)}">${esc(o.job_no)} / ${esc(o.unit_no)} / ${esc(o.stage)}</option>`).join('');
+      sel.addEventListener('change',function(){
+        if(!this.value){ jobNo=unitNo=stage=''; return; }
+        var p=this.value.split('|'); jobNo=p[0]; unitNo=p[1]; stage=p[2];
+        document.getElementById('jobNoInput').value=jobNo;
+        document.getElementById('unitNoInput').value=unitNo;
+        document.getElementById('stageSelect').value=stage;
+      });
+    }catch(e){ console.error(e); }
+  })();
+
+  /* ── Load tags ── */
+  document.getElementById('jeLoadBtn').addEventListener('click', loadTags);
+
+  async function loadTags(){
+    if(!jobNo||!unitNo||!stage){ alert('Select a review first.'); return; }
+    try{
+      document.getElementById('jeStatusText').textContent='Loading…';
+      var data=await apiFetch(`/api/internal/job-engineer-tags?jobNo=${jobNo}&unitNo=${unitNo}&stage=${encodeURIComponent(stage)}`);
+      allTags=data.tags||[];
+      applyFilters();
+      updateSummary();
+      populateZoneFilter();
+      document.getElementById('jeStatusText').textContent=allTags.length+' tag(s) loaded';
+    }catch(e){
+      document.getElementById('jeStatusText').textContent='Error: '+e.message;
+    }
+  }
+
+  function applyFilters(){
+    var statusF=document.getElementById('statusFilter').value;
+    var zoneF=document.getElementById('zoneFilter').value;
+    var tagQ=(document.getElementById('jeTagNo').value||'').toLowerCase();
+
+    filteredTags=allTags.filter(t=>{
+      var st=t.resolution_status||'NOT_STARTED';
+      var matchSt=statusF==='ALL'||st===statusF;
+      var matchZ=zoneF==='ALL'||((t.zone||'')===zoneF);
+      var matchQ=!tagQ||(t.tag_no||'').toLowerCase().includes(tagQ);
+      return matchSt&&matchZ&&matchQ;
+    });
+
+    if(currentIdx>=filteredTags.length) currentIdx=0;
+    renderCurrentTag();
+    renderTagPointsTable();
+  }
+
+  document.getElementById('statusFilter').addEventListener('change',applyFilters);
+  document.getElementById('zoneFilter').addEventListener('change',applyFilters);
+  document.getElementById('jeTagNo').addEventListener('input', function(){
+    var q=this.value.toLowerCase();
+    if(!q){ applyFilters(); return; }
+    var idx=filteredTags.findIndex(t=>(t.tag_no||'').toLowerCase().includes(q));
+    if(idx>=0){ currentIdx=idx; renderCurrentTag(); }
+    var count=filteredTags.filter(t=>(t.tag_no||'').toLowerCase().includes(q)).length;
+    document.getElementById('jeTagMatchInfo').textContent=count+' match(es)';
+  });
+
+  function populateZoneFilter(){
+    var zones=[...new Set(allTags.map(t=>t.zone).filter(Boolean))];
+    var sel=document.getElementById('zoneFilter');
+    sel.innerHTML='<option value="ALL">All</option>'+zones.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');
+  }
+
+  function renderCurrentTag(){
+    var tag=filteredTags[currentIdx];
+    var count=filteredTags.length;
+    document.getElementById('jePositionInfo').textContent=count?`Tag ${currentIdx+1} of ${count}`:'No tags';
+
+    if(!tag){
+      ['jeTagNo','jeModelName','jeViewName','jeDescription','jeResolution','jeResolutionStatus','jeReviewDate']
+        .forEach(id=>{ var el=document.getElementById(id); if(el) el.value=el.tagName==='SELECT'?'ALL':''; });
+      document.getElementById('jeResolutionStatus').textContent='—';
+      document.getElementById('jeOriginalSnap').innerHTML='No original snap';
+      document.getElementById('jeSnapPreview').innerHTML='No image selected';
+      document.getElementById('jePrevBtn').disabled=true;
+      document.getElementById('jeNextBtn').disabled=true;
+      return;
+    }
+
+    document.getElementById('jeTagNo').value=tag.tag_no||'';
+    document.getElementById('jeModelName').value=tag.model_file||'';
+    document.getElementById('jeViewName').value=tag.view_name||'';
+    document.getElementById('jeDescription').value=tag.description||'';
+    document.getElementById('jeResolution').value=tag.resolution||'';
+    document.getElementById('jeReviewDate').value=(tag.tag_date||'').slice(0,10);
+    var st=tag.resolution_status||'NOT_STARTED';
+    document.getElementById('jeResolutionStatus').textContent=st;
+
+    /* original snap */
+    var orig=document.getElementById('jeOriginalSnap');
+    if(tag.original_snap_path){
+      orig.innerHTML=`<img src="/${encodePath(tag.original_snap_path)}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" onerror="this.parentElement.textContent='Image not found'">`;
+    } else {
+      orig.textContent='No original snap';
+    }
+
+    /* resolved snap */
+    var prev=document.getElementById('jeSnapPreview');
+    if(tag.resolved_snap_path){
+      prev.innerHTML=`<img src="/${encodePath(tag.resolved_snap_path)}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" onerror="this.parentElement.textContent='Image not found'">`;
+    } else {
+      prev.textContent='No image selected';
+    }
+
+    /* disable inputs if submitted/approved */
+    var locked=st==='SUBMITTED'||st==='APPROVED';
+    document.getElementById('jeResolution').readOnly=locked;
+    document.getElementById('jeSaveBtn').disabled=locked;
+    document.getElementById('jeSubmitBtn').disabled=locked||!tag.resolution;
+
+    /* arrow boundary state */
+    document.getElementById('jePrevBtn').disabled=(currentIdx===0);
+    document.getElementById('jeNextBtn').disabled=(currentIdx>=filteredTags.length-1);
+  }
+
+  function updateSummary(){
+    var counts={total:0,not_started:0,saved:0,submitted:0,approved:0,rejected:0};
+    allTags.forEach(t=>{
+      counts.total++;
+      switch(t.resolution_status||'NOT_STARTED'){
+        case 'NOT_STARTED': counts.not_started++; break;
+        case 'SAVED':       counts.saved++;        break;
+        case 'SUBMITTED':   counts.submitted++;    break;
+        case 'APPROVED':    counts.approved++;     break;
+        case 'REJECTED':    counts.rejected++;     break;
+      }
+    });
+    document.getElementById('jeTotal').textContent=counts.total;
+    document.getElementById('jeNotStarted').textContent=counts.not_started;
+    document.getElementById('jeSaved').textContent=counts.saved;
+    document.getElementById('jeSubmitted').textContent=counts.submitted;
+    document.getElementById('jeApproved').textContent=counts.approved;
+    document.getElementById('jeRejected').textContent=counts.rejected;
+  }
+
+  /* ── Navigation ── */
+  document.getElementById('jePrevBtn').addEventListener('click',()=>{ if(currentIdx>0){currentIdx--;renderCurrentTag();} });
+  document.getElementById('jeNextBtn').addEventListener('click',()=>{ if(currentIdx<filteredTags.length-1){currentIdx++;renderCurrentTag();} });
+
+  /* ── Save ── */
+  document.getElementById('jeSaveBtn').addEventListener('click', async()=>{
+    var tag=filteredTags[currentIdx]; if(!tag) return;
+    var resolution=document.getElementById('jeResolution').value;
+    var formData=new FormData();
+    formData.append('resolution',resolution);
+    var snap=document.getElementById('jeResolvedSnap').files[0];
+    if(snap) formData.append('resolvedSnap',snap);
+    try{
+      await apiFetch(`/api/tags/${tag.id}/save-resolution`,{ method:'POST', body:formData });
+      tag.resolution=resolution; tag.resolution_status='SAVED';
+      renderCurrentTag(); updateSummary(); renderTagPointsTable();
+      alert('Saved.');
+    }catch(e){ alert('Save failed: '+e.message); }
+  });
+
+  /* ── Submit ── */
+  document.getElementById('jeSubmitBtn').addEventListener('click', async()=>{
+    var tag=filteredTags[currentIdx]; if(!tag) return;
+    if(!tag.resolution&&!document.getElementById('jeResolution').value){ alert('Save resolution first.'); return; }
+    if(!confirm('Submit this tag for LE approval?')) return;
+    try{
+      await apiFetch(`/api/tags/${tag.id}/submit-resolution`,{ method:'POST', body:'{}' });
+      tag.resolution_status='SUBMITTED';
+      renderCurrentTag(); updateSummary(); renderTagPointsTable();
+      alert('Submitted.');
+    }catch(e){ alert('Submit failed: '+e.message); }
+  });
+
+  /* ── Image attach/remove ── */
+  document.getElementById('jeUploadSnapBtn').addEventListener('click',()=>document.getElementById('jeResolvedSnap').click());
+  document.getElementById('jeResolvedSnap').addEventListener('change',function(){
+    var file=this.files[0]; if(!file) return;
+    var prev=document.getElementById('jeSnapPreview');
+    var reader=new FileReader();
+    reader.onload=e=>{ prev.innerHTML=`<img src="${e.target.result}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`; };
+    reader.readAsDataURL(file);
+  });
+  document.getElementById('jeDeleteSnapBtn').addEventListener('click', async()=>{
+    var tag=filteredTags[currentIdx]; if(!tag) return;
+    if(!confirm('Remove the attached image?')) return;
+    try{
+      await apiFetch(`/api/tags/${tag.id}/delete-snap`,{ method:'POST', body:'{}' });
+      tag.resolved_snap_path=null;
+      document.getElementById('jeSnapPreview').textContent='No image selected';
+      document.getElementById('jeResolvedSnap').value='';
+      alert('Image removed.');
+    }catch(e){ alert('Remove failed: '+e.message); }
+  });
+
+  /* ── Tag points table ── */
+  document.getElementById('tagToggleBtn').addEventListener('click',function(){
+    var c=document.getElementById('tagpointsContent');
+    c.classList.toggle('collapsed');
+    this.textContent=c.classList.contains('collapsed')?'+':'−';
+  });
+
+  document.getElementById('tagSearchInput').addEventListener('input',function(){
+    var q=this.value.toLowerCase();
+    renderTagPointsTable(filteredTags.filter(t=>(t.tag_no||'').toLowerCase().includes(q)||(t.description||'').toLowerCase().includes(q)));
+  });
+
+  function renderTagPointsTable(tags){
+    tags=tags||filteredTags;
+    var body=document.getElementById('tagpointsBody');
+    if(!tags.length){ body.innerHTML='<div class="tagpoints-empty-msg">No tags to display.</div>'; return; }
+    body.innerHTML=tags.map((t,i)=>`
+      <div class="tagpoints-row" data-idx="${filteredTags.indexOf(t)}" style="cursor:pointer;">
+        <div>${i+1}</div>
+        <div>${esc(t.tag_no)}</div>
+        <div>${esc(t.description||'').slice(0,40)}</div>
+        <div>${esc(t.zone||'—')}</div>
+        <div>${esc(t.model_file||'—')}</div>
+        <div>${t.tag_date||'—'}</div>
+        <div>${esc((t.resolution||'—').slice(0,30))}</div>
+        <div><span class="tp-status tp-status--${(t.resolution_status||'NOT_STARTED').toLowerCase()}">${t.resolution_status||'NOT_STARTED'}</span></div>
+        <div><button class="tp-go-btn" data-idx="${filteredTags.indexOf(t)}">Go</button></div>
+      </div>`).join('');
+
+    body.querySelectorAll('.tp-go-btn').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        e.stopPropagation();
+        currentIdx=parseInt(btn.dataset.idx);
+        renderCurrentTag();
+        window.scrollTo({ top:0, behavior:'smooth' });
+      });
+    });
+  }
+  </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>MRCS — Administration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="css/admin2.css" />
+    <link rel="stylesheet" href="css/navbar.css" />
+</head>
+
+<body>
+
+    <div class="page-wrapper">
+
+        <main class="hero">
+            <div class="orb orb-left"></div>
+            <div class="orb orb-right"></div>
+            <div class="orb orb-right-small"></div>
+
+            <!-- ===== PANEL: MOM ===== -->
+            <div id="panelMOM" style="display:none;">
+                <div class="form-card">
+                    <div class="employee-header-bar">
+                        <div class="init-section-title">Minutes of Meeting</div>
+                        <div style="display:flex;gap:10px;">
+                            <button class="mrcs-btn" id="momAddRowBtn">+ Add Row</button>
+                            <button class="mrcs-btn" id="momSaveBtn">&#128190; Save</button>
+                            <button class="mrcs-btn" id="momPrintBtn">&#128438; Print PDF</button>
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-top:16px;">
+                        <select id="momReviewPicker" style="flex:2;"></select>
+                        <input type="hidden" id="momJobNo">
+                        <input type="hidden" id="momUnitNo">
+                        <input type="hidden" id="momStage">
+                    </div>
+
+                    <div class="mom-table-wrap" style="margin-top:16px;">
+                        <table class="mom-table" id="momTable">
+                            <thead>
+                                <tr>
+                                    <th>Sl No</th>
+                                    <th>Description of Point</th>
+                                    <th>To be closed by</th>
+                                    <th class="mom-action-col">&#10005;</th>
+                                </tr>
+                            </thead>
+                            <tbody id="momTableBody"></tbody>
+                        </table>
+                        <div id="momEmptyMsg" class="mom-empty">Select a review above, then add rows.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== PANEL: PREREQUISITES & ATTENDANCE ===== -->
+            <div id="panelPrereq" style="display:none;">
+
+                <div class="form-card">
+                    <div class="employee-header-bar">
+                        <div class="init-section-title">Department Review Preparation Summary</div>
+                        <button class="mrcs-btn" id="openAttendanceBtn">&#128197; Attendance</button>
+                    </div>
+
+                    <div class="form-row" style="margin-top:16px;">
+                        <select id="reviewReviewPicker" style="flex:2;"></select>
+                        <input type="hidden" id="reviewJobNoInput">
+                        <input type="hidden" id="reviewUnitNoInput">
+                        <input type="hidden" id="reviewStageSelect">
+                        <button id="glLoadReviewSummaryBtn" class="mrcs-btn">Load Summary</button>
+                    </div>
+
+                    <div id="initiationDetailCard" style="display:none; margin-top:18px; padding:14px 18px; border:1px solid var(--col-border); border-radius:4px; background:rgba(0,168,255,0.04);">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--col-accent);margin-bottom:10px;">Model Review Initiation Details</div>
+                        <div style="display:flex;gap:32px;flex-wrap:wrap;">
+                            <div>
+                                <div style="font-size:11px;color:var(--col-muted);margin-bottom:2px;">Review Period</div>
+                                <div id="initiationPeriod" style="font-weight:600;">—</div>
+                            </div>
+                            <div style="flex:1;min-width:200px;">
+                                <div style="font-size:11px;color:var(--col-muted);margin-bottom:2px;">Description</div>
+                                <div id="initiationDesc">—</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:18px;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--col-muted);margin-bottom:8px;">Review Preparation Status by Department</div>
+                        <div class="employee-table">
+                            <div class="employee-row employee-header review-summary-row">
+                                <div>Department</div>
+                                <div>Status</div>
+                                <div>Submitted At</div>
+                                <div>Pending</div>
+                                <div>Total Verified</div>
+                                <div>Accepted</div>
+                                <div>Not Accepted</div>
+                            </div>
+                            <div id="reviewSummaryBody"></div>
+                        </div>
+                    </div>
+
+                    <div id="prereqDetailSection" style="display:none; margin-top:24px;">
+                        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--col-muted);margin-bottom:8px;">Prerequisite Verification Status</div>
+                        <div class="table-container">
+                            <table class="summary-table">
+                                <thead>
+                                    <tr>
+                                        <th>Department</th>
+                                        <th>Prerequisite</th>
+                                        <th>Status</th>
+                                        <th>Exception Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prereqDetailBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /panelPrereq -->
+
+            <!-- ===== PANEL: TAG STATUS & CRS REPORT ===== -->
+            <div id="panelTags" style="display:none;">
+
+                <div class="form-card">
+                    <div class="employee-header-bar">
+                        <div class="init-section-title">Tag Status</div>
+                        <button class="mrcs-btn" id="openReportModalBtn">&#128203; Generate CRS Report</button>
+                    </div>
+
+                    <div class="form-row" style="margin-top:16px;">
+                        <select id="glReviewPicker" style="flex:2;"></select>
+                        <input type="hidden" id="glJobNo">
+                        <input type="hidden" id="glUnitNo">
+                        <input type="hidden" id="glStage">
+                        <button id="glLoadSummaryBtn" class="mrcs-btn">Load Summary</button>
+                    </div>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card total">
+                        <div class="card-title">Total Tags</div>
+                        <div class="card-value" id="glTotalTags">0</div>
+                    </div>
+                    <div class="summary-card completed">
+                        <div class="card-title">Completed</div>
+                        <div class="card-value" id="glCompletedTags">0</div>
+                    </div>
+                    <div class="summary-card progress">
+                        <div class="card-title">In Progress</div>
+                        <div class="card-value" id="glInProgressTags">0</div>
+                    </div>
+                    <div class="summary-card not-started">
+                        <div class="card-title">Not Started</div>
+                        <div class="card-value" id="glNotStartedTags">0</div>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>Overall Progress</span>
+                        <span id="glProgressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div id="glProgressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="form-card">
+                    <div class="table-container">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Total</th>
+                                    <th>Not Started</th>
+                                    <th>Draft</th>
+                                    <th>Pending Approval</th>
+                                    <th>Approved</th>
+                                    <th>Rejected</th>
+                                </tr>
+                            </thead>
+                            <tbody id="glSummaryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div><!-- /panelTags -->
+
+            <!-- ===== PANEL: ADD USER ===== -->
+            <div id="panelUsers" style="display:none;">
+
+                <div class="form-card employee-card">
+
+                    <div class="employee-header-bar">
+                        <div class="employee-title">Employee Master</div>
+                        <input type="text" id="employeeSearch" placeholder="Search employee..." class="employee-search" />
+                    </div>
+
+                    <div class="employee-table" id="employeeTable">
+                        <div class="employee-row employee-header">
+                            <div>Sl No</div>
+                            <div>Employee No</div>
+                            <div>Employee Name</div>
+                            <div>Role</div>
+                            <div>Department</div>
+                            <div>Job No</div>
+                            <div>Unit No</div>
+                        </div>
+                    </div>
+
+                    <div class="employee-footer">
+                        <button class="mrcs-btn" id="addEmployeeBtn">Add Employee</button>
+                    </div>
+
+                    <!-- Add employee inline form -->
+                    <div id="addEmployeeForm" style="display:none;">
+                        <div class="add-user-title">Add New Employee</div>
+                        <div class="add-user-grid">
+                            <div class="add-user-field">
+                                <label>Employee</label>
+                                <select id="employeeSelect"><option value="">Select Employee</option></select>
+                            </div>
+                            <div class="add-user-field">
+                                <label>Role</label>
+                                <select id="roleSelect">
+                                    <option value="">Select Role</option>
+                                    <option value="JE">Job Engineer</option>
+                                    <option value="LE">Lead Engineer</option>
+                                    <option value="GL">Group Lead</option>
+                                </select>
+                            </div>
+                            <div class="add-user-field">
+                                <label>Department</label>
+                                <input type="text" id="departmentField" readonly placeholder="Auto-filled">
+                            </div>
+                            <div class="add-user-field">
+                                <label>Model Review</label>
+                                <select id="addUserReviewPicker"><option value="">— Select Model Review —</option></select>
+                                <input type="hidden" id="jobNoInput">
+                                <input type="hidden" id="unitNoInput">
+                                <input type="hidden" id="addUserStage">
+                            </div>
+                        </div>
+                        <div class="add-user-actions">
+                            <button class="mrcs-btn" id="saveUserBtn">Save</button>
+                            <button class="mrcs-btn" id="cancelAddBtn">Cancel</button>
+                        </div>
+                        <div id="addUserMessage"></div>
+                    </div>
+
+                </div>
+
+            </div><!-- /panelUsers -->
+
+        </main>
+
+        <footer class="footer">
+            <div class="footer-left">
+                <a href="#">EIL</a> <span>•</span>
+                <a href="#">EIL</a> <span>•</span>
+                <a href="#">EIL</a> <span>•</span>
+                <a href="mailto:info@mysite.com">HELP</a>
+            </div>
+            <div class="footer-right">
+                <span>0124-289-1234</span> <span>|</span>
+                <span>EIL</span> <span>|</span>
+                <span>EIL</span>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- ATTENDANCE MODAL -->
+    <div class="modal-overlay" id="attendanceModal">
+        <div class="modal-card attendance-modal-card">
+
+            <div class="attendance-left">
+                <div class="modal-group">
+                    <label>Job Number</label>
+                    <select id="attendanceJob"></select>
+                </div>
+                <div class="modal-group">
+                    <label>Unit Number</label>
+                    <select id="attendanceUnit"></select>
+                </div>
+                <div class="modal-footer">
+                    <button class="mrcs-btn" id="generateQRBtn">Generate QR</button>
+                </div>
+                <div class="qr-section">
+                    <div id="qrContainer"></div>
+                    <div id="qrTimer"></div>
+                </div>
+            </div>
+
+            <div class="attendance-right">
+                <h4>Live Attendance (<span id="attendanceCount">0</span>)</h4>
+                <div class="attendance-table">
+                    <div class="attendance-row header">
+                        <div>Name</div>
+                        <div>Phone</div>
+                        <div>Designation</div>
+                        <div>Company</div>
+                        <div>Time</div>
+                    </div>
+                    <div id="attendanceList"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CRS REPORT MODAL -->
+    <div id="reportModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>Generate CRS Report</h3>
+            <label>Job No</label>
+            <select id="jobSelect"></select>
+            <label>Unit No</label>
+            <select id="unitSelect"></select>
+            <label>Stage</label>
+            <select id="stageSelect"></select>
+            <div class="modal-actions">
+                <button id="downloadReportBtn" class="btn-success">Download PDF</button>
+                <button id="closeReportModalBtn" class="btn-danger">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/navbar.js"></script>
+    <script src="js/header.js"></script>
+    <script src="js/review-picker.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="js/admin.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            initReviewPicker("reviewReviewPicker", (jobNo, unitNo, stage) => {
+                document.getElementById("reviewJobNoInput").value = jobNo;
+                document.getElementById("reviewUnitNoInput").value = unitNo;
+                document.getElementById("reviewStageSelect").value = stage;
+            });
+            initReviewPicker("glReviewPicker", (jobNo, unitNo, stage) => {
+                document.getElementById("glJobNo").value = jobNo;
+                document.getElementById("glUnitNo").value = unitNo;
+                document.getElementById("glStage").value = stage;
+            });
+        });
+    </script>
+
+</body>
+
+</html>

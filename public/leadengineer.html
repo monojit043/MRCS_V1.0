@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCSleadengineer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="css/leadengineer2.css" />
+  <link rel="stylesheet" href="css/doclib-modal.css" />
+  <link rel="stylesheet" href="css/navbar.css" />
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+
+    <!-- Shared review picker + load bar -->
+    <div class="form-card le-control-bar">
+      <div class="le-cb-row">
+        <div class="form-group" style="flex:2;min-width:180px;">
+          <label>Select Model Review</label>
+          <select id="reviewPicker"></select>
+        </div>
+        <div class="form-buttons le-cb-buttons">
+          <button id="loadLeadTagsBtn" class="mrcs-btn">Load Tags</button>
+          <button type="button" id="leShowInfoBtn" class="mrcs-btn">Review Info</button>
+        </div>
+      </div>
+      <input type="hidden" id="jobNo">
+      <input type="hidden" id="unitNo">
+      <input type="hidden" id="reviewStage">
+      <input type="hidden" id="leadJobNo">
+      <input type="hidden" id="leadUnitNo">
+      <input type="hidden" id="leadStage">
+    </div>
+
+    <div id="reviewSection" class="work-section">
+      <main class="hero">
+        <div class="orb orb-left"></div>
+        <div class="orb orb-right"></div>
+        <div class="orb orb-right-small"></div>
+
+        <div class="form-card">
+          <div class="status-bar">
+            Status: <span id="reviewStatus">Draft</span>
+          </div>
+        </div>
+
+        <div class="form-card details-card">
+
+          <div class="details-title">
+            Details of Review
+          </div>
+
+          <div class="details-row">
+            <div class="details-group">
+              <label>Review Period</label>
+              <div id="reviewPeriodDisplay" class="details-display">—</div>
+            </div>
+          </div>
+          <div class="details-description">
+            <label>Description</label>
+            <div id="reviewDescriptionDisplay" class="details-display">—</div>
+          </div>
+
+        </div>
+
+        <div class="form-card prereq-card">
+          <div class="prereq-header">
+            <div class="prereq-title">
+              Prerequisites of Selected Model Review Stage
+            </div>
+          </div>
+
+          <div class="prereq-body">
+
+            <div class="prereq-full">
+              <div id="prereqContainer"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="submit-wrapper">
+          <button type="button" id="saveReviewBtn" class="final-submit-btn">
+            Save Draft
+          </button>
+
+          <button type="button" id="submitReviewBtn" class="final-submit-btn">
+            Submit for Review
+          </button>
+
+          <button type="button" id="editReviewBtn" class="final-submit-btn" style="display:none;">
+            Edit Review
+          </button>
+
+        </div>
+      </main>
+    </div>
+
+    <div id="approvalSection" class="work-section active-section">
+
+      <div class="form-card lead-summary-card">
+
+        <div class="summary-title">
+          Department Tag Summary
+        </div>
+
+        <div class="summary-grid">
+
+          <div class="summary-box total">
+            <div class="summary-number" id="sumTotal">0</div>
+            <div class="summary-label">Total Tags</div>
+          </div>
+
+          <div class="summary-box pending">
+            <div class="summary-number" id="sumPending">0</div>
+            <div class="summary-label">Pending Approval</div>
+          </div>
+
+          <div class="summary-box approved">
+            <div class="summary-number" id="sumApproved">0</div>
+            <div class="summary-label">Approved</div>
+          </div>
+
+          <div class="summary-box rejected">
+            <div class="summary-number" id="sumRejected">0</div>
+            <div class="summary-label">Rejected</div>
+          </div>
+
+          <div class="summary-box draft">
+            <div class="summary-number" id="sumDraft">0</div>
+            <div class="summary-label">Draft</div>
+          </div>
+
+          <div class="summary-box notstarted">
+            <div class="summary-number" id="sumNotStarted">0</div>
+            <div class="summary-label">Not Started</div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- =============================== -->
+      <!-- APPROVAL REVIEW CARD -->
+      <!-- =============================== -->
+      <div class="tag-detail-wrapper">
+
+        <!-- Left Arrow -->
+        <button class="tag-arrow tag-arrow-left" id="leadPrevBtn">&#10094;</button>
+
+        <!-- MAIN CARD -->
+        <div class="form-card tag-detail-card">
+
+          <!-- Top Row -->
+          <div class="tag-detail-toprow">
+
+            <div class="td-item">
+              <label>Tag No</label>
+              <input type="text" id="leadTagNo" readonly>
+            </div>
+
+            <div class="td-item">
+              <label>View Name</label>
+              <input type="text" id="leadViewName" readonly>
+            </div>
+
+            <div class="td-item">
+              <label>Model Name</label>
+              <input type="text" id="leadModelName" readonly>
+            </div>
+
+            <div class="td-item">
+              <label>Zone</label>
+              <select id="leadZoneFilter">
+                <option value="ALL">All</option>
+              </select>
+            </div>
+
+            <div class="td-item">
+              <label>Status</label>
+              <select id="leadStatusFilter">
+                <option value="ALL">All</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="SAVED">Saved</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+            
+            <div class="td-item">
+              <label>Model Review Date</label>
+              <input type="date" id="leadReviewDate" readonly>
+            </div>
+
+          </div>
+
+          <!-- Position Indicator -->
+          <div class="je-navigation-info">
+            <span id="leadPositionInfo">Tag 0 of 0</span>
+          </div>
+
+          <!-- Headers -->
+          <div class="tag-detail-headers">
+            <div class="hdr">Tag Description</div>
+            <div class="hdr">Resolution of Tag</div>
+          </div>
+
+          <!-- Textareas -->
+          <div class="tag-detail-descriptions">
+            <div class="desc">
+              <textarea id="leadDescription" readonly></textarea>
+            </div>
+
+            <div class="desc">
+              <textarea id="leadResolution" readonly></textarea>
+            </div>
+          </div>
+
+          <!-- Image Frames -->
+          <div class="tag-detail-images">
+
+            <div class="img-frame">
+              <div class="img-placeholder" id="leadOriginalSnap">
+                No original snap
+              </div>
+            </div>
+
+            <div class="img-frame">
+              <div class="img-placeholder" id="leadResolvedSnap">
+                No resolved snap
+              </div>
+              <input type="file" id="leadResolvedSnapInput" hidden accept="image/*">
+              <button class="mrcs-btn" id="leadUploadBtn" style="display:none;">Attach Image</button>
+            </div>
+
+          </div>
+
+          <!-- Rejection Comment -->
+          <!-- <div class="details-description" style="margin-top:15px;">
+            <label>Rejection Comment (Mandatory for Reject)</label>
+            <textarea id="leadRejectionComment" placeholder="Enter rejection comment if rejecting...">
+            </textarea>
+          </div> -->
+
+          <div id="leadRejectionContainer" class="details-description" style="margin-top:15px; display:none;">
+            <label>Rejection Comment (Mandatory for Reject)</label>
+            <textarea id="leadRejectionComment"></textarea>
+          </div>
+
+          <!-- Bottom Actions -->
+          <div class="tag-detail-bottom">
+            <div class="tag-detail-actions">
+              <button class="mrcs-btn" id="leadApproveBtn">APPROVE</button>
+              <button class="mrcs-btn" id="leadRejectBtn">REJECT</button>
+              <button class="mrcs-btn" id="leadSaveBtn" style="display:none;">SAVE</button>
+            </div>
+          </div>
+
+          <div class="je-status">
+            Status: <span id="leadResolutionStatus">-</span>
+          </div>
+
+        </div>
+
+        <!-- Right Arrow -->
+        <button class="tag-arrow tag-arrow-right" id="leadNextBtn">&#10095;</button>
+
+      </div>
+
+
+      <!-- =============================== -->
+      <!-- COLLAPSIBLE HISTORY SECTION -->
+      <!-- =============================== -->
+      <div class="form-card lead-history-card">
+
+        <div class="history-header" id="historyToggle" style="cursor:pointer;">
+          <h3 style="margin:0;">Table of Tag Points</h3>
+          <span id="historyArrow">▼</span>
+        </div>
+
+        <div class="history-body" id="historyBody" style="display:none; margin-top:15px;">
+
+          <table class="uploaded-table history-table">
+            <thead>
+              <tr>
+                <th>Sl No</th>
+                <th>Tag No</th>
+                <th>Tag Details</th>
+                <th>Zone</th>
+                <th>Model Name</th>
+                <th>Tag Taken Date</th>
+                <th>Resolution</th>
+                <th>Status</th>
+                <th>Go</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- History rows will be inserted dynamically -->
+            </tbody>
+          </table>
+
+          <div class="tagpoints-search-footer">
+            <input type="text" id="leHistorySearch" placeholder="Search tag points..." />
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- REVIEW INFO MODAL -->
+    <div id="ri-backdrop" class="ri-backdrop" aria-hidden="true">
+      <div class="ri-modal" role="dialog" aria-modal="true">
+        <div class="ri-card">
+          <div class="ri-header">
+            <span class="ri-title">Review Information</span>
+            <button class="ri-close" id="ri-close" aria-label="Close">&times;</button>
+          </div>
+
+          <div class="ri-section-heading"><span class="ri-bar"></span> Initiation Details</div>
+          <div class="ri-fields-row">
+            <div class="ri-field">
+              <label>Date From</label>
+              <input type="text" id="ri-date-from" readonly placeholder="—" />
+            </div>
+            <div class="ri-field">
+              <label>Date To</label>
+              <input type="text" id="ri-date-to" readonly placeholder="—" />
+            </div>
+            <div class="ri-field">
+              <label>Stage</label>
+              <input type="text" id="ri-stage" readonly placeholder="—" />
+            </div>
+            <div class="ri-field">
+              <label>Review Type</label>
+              <input type="text" id="ri-type" readonly placeholder="—" />
+            </div>
+          </div>
+          <div class="ri-field ri-full">
+            <label>Description</label>
+            <textarea id="ri-description" readonly placeholder="No description provided."></textarea>
+          </div>
+
+          <div class="ri-section-heading ri-section-gap"><span class="ri-bar"></span> Document Library (NWD Files)</div>
+          <div class="ri-dl-wrap">
+            <div class="ri-dl-row ri-dl-header">
+              <div>Sl No</div>
+              <div>NWD File Name</div>
+              <div>Review Date</div>
+              <div>Upload Date</div>
+              <div>Tags</div>
+              <div>Uploaded By</div>
+            </div>
+            <div id="ri-dl-body">
+              <div class="ri-empty">Load tags first, then open Review Info.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-left">
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="mailto:info@mysite.com">HELP</a>
+      </div>
+      <div class="footer-right">
+        <span>0124-289-1234</span> <span>|</span>
+        <span>EIL</span> <span>|</span>
+        <span>EIL</span>
+      </div>
+    </footer>
+
+  </div>
+  
+  <script src="js/api.js"></script>
+  <script src="js/navbar.js"></script>
+  <script src="js/header.js"></script>
+  <script src="js/review-picker.js"></script>
+  <script src="js/lead-engineer.js"></script>
+  <script src="js/doclib-modal.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      initReviewPicker("reviewPicker", (jobNo, unitNo, stage) => {
+        // Review prep section
+        document.getElementById("jobNo").value = jobNo;
+        document.getElementById("unitNo").value = unitNo;
+        document.getElementById("reviewStage").value = stage;
+        document.getElementById("reviewStage").dispatchEvent(new Event("change"));
+        // Approval section
+        document.getElementById("leadJobNo").value = jobNo;
+        document.getElementById("leadUnitNo").value = unitNo;
+        document.getElementById("leadStage").value = stage;
+        document.getElementById("leadStage").dispatchEvent(new Event("change"));
+      });
+    });
+  </script>
+
+</body>
+
+</html>

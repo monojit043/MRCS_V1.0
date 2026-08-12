@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>MRCS — Internal Lead Engineer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/leadengineer2.css"/>
+  <link rel="stylesheet" href="css/navbar.css"/>
+  <link rel="stylesheet" href="css/internal.css"/>
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <!-- Control bar -->
+    <div class="form-card le-control-bar">
+      <div class="le-cb-row">
+        <div class="form-group" style="flex:2;min-width:180px;">
+          <label>Select Internal Review</label>
+          <select id="reviewPicker"></select>
+        </div>
+        <div class="form-buttons le-cb-buttons">
+          <button id="loadLeadTagsBtn" class="mrcs-btn">Load Tags</button>
+        </div>
+      </div>
+      <input type="hidden" id="leadJobNo">
+      <input type="hidden" id="leadUnitNo">
+      <input type="hidden" id="leadStage">
+    </div>
+
+    <!-- Approval section -->
+    <div id="approvalSection" class="work-section active-section">
+
+      <!-- Summary cards -->
+      <div class="form-card lead-summary-card">
+        <div class="summary-title">Department Tag Summary</div>
+        <div class="summary-grid">
+          <div class="summary-box total">   <div class="summary-number" id="sumTotal">0</div>   <div class="summary-label">Total</div></div>
+          <div class="summary-box pending"> <div class="summary-number" id="sumPending">0</div> <div class="summary-label">Pending</div></div>
+          <div class="summary-box approved"><div class="summary-number" id="sumApproved">0</div><div class="summary-label">Approved</div></div>
+          <div class="summary-box rejected"><div class="summary-number" id="sumRejected">0</div><div class="summary-label">Rejected</div></div>
+          <div class="summary-box draft">   <div class="summary-number" id="sumDraft">0</div>   <div class="summary-label">Draft</div></div>
+          <div class="summary-box notstarted"><div class="summary-number" id="sumNotStarted">0</div><div class="summary-label">Not Started</div></div>
+        </div>
+      </div>
+
+      <!-- Tag detail card with arrows -->
+      <div class="tag-detail-wrapper">
+        <button class="tag-arrow tag-arrow-left" id="leadPrevBtn">&#10094;</button>
+
+        <div class="form-card tag-detail-card">
+          <div class="tag-detail-toprow">
+            <div class="td-item"><label>Tag No</label><input type="text" id="leadTagNo" readonly></div>
+            <div class="td-item"><label>View Name</label><input type="text" id="leadViewName" readonly></div>
+            <div class="td-item"><label>Model Name</label><input type="text" id="leadModelName" readonly></div>
+            <div class="td-item">
+              <label>Zone</label>
+              <select id="leadZoneFilter"><option value="ALL">All</option></select>
+            </div>
+            <div class="td-item">
+              <label>Status</label>
+              <select id="leadStatusFilter">
+                <option value="ALL">All</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="SAVED">Saved</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+            <div class="td-item"><label>Tag Date</label><input type="date" id="leadReviewDate" readonly></div>
+          </div>
+
+          <div class="je-navigation-info">
+            <span id="leadPositionInfo">Tag 0 of 0</span>
+          </div>
+
+          <div class="tag-detail-headers">
+            <div class="hdr">Tag Description</div>
+            <div class="hdr">Resolution of Tag</div>
+          </div>
+
+          <div class="tag-detail-descriptions">
+            <div class="desc"><textarea id="leadDescription" readonly></textarea></div>
+            <div class="desc"><textarea id="leadResolution" readonly></textarea></div>
+          </div>
+
+          <div class="tag-detail-images">
+            <div class="img-frame">
+              <div class="img-placeholder" id="leadOriginalSnap">No original snap</div>
+            </div>
+            <div class="img-frame">
+              <div class="img-placeholder" id="leadResolvedSnap">No resolved snap</div>
+            </div>
+          </div>
+
+          <div id="leadRejectionContainer" class="details-description" style="margin-top:15px;display:none;">
+            <label>Rejection Comment (required)</label>
+            <textarea id="leadRejectionComment"></textarea>
+          </div>
+
+          <div class="tag-detail-bottom">
+            <div class="tag-detail-actions">
+              <button class="mrcs-btn" id="leadApproveBtn">APPROVE</button>
+              <button class="mrcs-btn" id="leadRejectBtn">REJECT</button>
+            </div>
+          </div>
+
+          <div class="je-status">Status: <span id="leadResolutionStatus">—</span></div>
+        </div>
+
+        <button class="tag-arrow tag-arrow-right" id="leadNextBtn">&#10095;</button>
+      </div>
+
+      <!-- History / tag points table -->
+      <div class="form-card lead-history-card">
+        <div class="history-header" id="historyToggle" style="cursor:pointer;">
+          <h3 style="margin:0;">Table of Tag Points</h3>
+          <span id="historyArrow">▼</span>
+        </div>
+        <div class="history-body" id="historyBody" style="display:none;margin-top:15px;">
+          <table class="uploaded-table history-table">
+            <thead>
+              <tr>
+                <th>Sl No</th><th>Tag No</th><th>Details</th><th>Zone</th>
+                <th>Model</th><th>Date</th><th>Resolution</th><th>Status</th><th>Go</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody"></tbody>
+          </table>
+          <div class="tagpoints-search-footer">
+            <input type="text" id="leHistorySearch" placeholder="Search tag points…"/>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer class="footer">
+      <div class="footer-left"><a href="#">EIL</a> <span>•</span> <a href="#">MRCS</a></div>
+      <div class="footer-right">Internal Operations Mode</div>
+    </footer>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/internal-navbar.js"></script>
+  <script src="js/header.js"></script>
+
+  <script>
+  /* ─────────────────────────────────────────────────────────
+     Internal Lead Engineer
+     Fetches tags via /api/internal/lead-review-tags
+     Approve/Reject via existing /api/tags/:id/approve|reject
+  ───────────────────────────────────────────────────────── */
+  var allTags=[], filteredTags=[], currentIdx=0, tagDept='';
+  var jobNo='', unitNo='', stage='';
+
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function encodePath(p){ return (p||'').split('/').map(encodeURIComponent).join('/'); }
+
+  /* ── Review picker ── */
+  (async function initPicker(){
+    try{
+      var data=await apiFetch('/api/internal/dropdown');
+      var sel=document.getElementById('reviewPicker');
+      sel.innerHTML='<option value="">— Select Internal Review —</option>'
+        +(data.options||[]).map(o=>`<option value="${esc(o.job_no)}|${esc(o.unit_no)}|${esc(o.stage)}">${esc(o.job_no)} / ${esc(o.unit_no)} / ${esc(o.stage)}</option>`).join('');
+      sel.addEventListener('change',function(){
+        if(!this.value){ jobNo=unitNo=stage=''; return; }
+        var p=this.value.split('|'); jobNo=p[0]; unitNo=p[1]; stage=p[2];
+        document.getElementById('leadJobNo').value=jobNo;
+        document.getElementById('leadUnitNo').value=unitNo;
+        document.getElementById('leadStage').value=stage;
+      });
+    }catch(e){ console.error(e); }
+  })();
+
+  /* ── Load tags ── */
+  document.getElementById('loadLeadTagsBtn').addEventListener('click', loadTags);
+
+  async function loadTags(){
+    if(!jobNo||!unitNo||!stage){ alert('Select a review first.'); return; }
+    try{
+      var data=await apiFetch(`/api/internal/lead-review-tags?jobNo=${jobNo}&unitNo=${unitNo}&stage=${encodeURIComponent(stage)}`);
+      allTags=data.tags||[];
+      tagDept=data.department||'';
+      applyFilters();
+      loadSummary();
+      populateZoneFilter();
+    }catch(e){ alert('Load failed: '+e.message); }
+  }
+
+  async function loadSummary(){
+    if(!jobNo) return;
+    try{
+      var s=await apiFetch(`/api/internal/lead-review-summary?jobNo=${jobNo}&unitNo=${unitNo}&stage=${encodeURIComponent(stage)}`);
+      document.getElementById('sumTotal').textContent=s.total||0;
+      document.getElementById('sumPending').textContent=s.pending_approval||0;
+      document.getElementById('sumApproved').textContent=s.approved||0;
+      document.getElementById('sumRejected').textContent=s.rejected||0;
+      document.getElementById('sumDraft').textContent=s.draft||0;
+      document.getElementById('sumNotStarted').textContent=s.not_started||0;
+    }catch(e){ console.error(e); }
+  }
+
+  function populateZoneFilter(){
+    var zones=[...new Set(allTags.map(t=>t.zone).filter(Boolean))];
+    var sel=document.getElementById('leadZoneFilter');
+    sel.innerHTML='<option value="ALL">All</option>'+zones.map(z=>`<option value="${esc(z)}">${esc(z)}</option>`).join('');
+  }
+
+  function applyFilters(){
+    var sf=document.getElementById('leadStatusFilter').value;
+    var zf=document.getElementById('leadZoneFilter').value;
+    filteredTags=allTags.filter(t=>{
+      var st=t.resolution_status||'NOT_STARTED';
+      return (sf==='ALL'||st===sf)&&(zf==='ALL'||(t.zone||'')===zf);
+    });
+    if(currentIdx>=filteredTags.length) currentIdx=0;
+    renderCurrentTag();
+    renderHistoryTable();
+  }
+  document.getElementById('leadStatusFilter').addEventListener('change',applyFilters);
+  document.getElementById('leadZoneFilter').addEventListener('change',applyFilters);
+
+  function renderCurrentTag(){
+    var tag=filteredTags[currentIdx];
+    var count=filteredTags.length;
+    document.getElementById('leadPositionInfo').textContent=count?`Tag ${currentIdx+1} of ${count}`:'No tags';
+
+    if(!tag){
+      ['leadTagNo','leadViewName','leadModelName','leadDescription','leadResolution','leadReviewDate']
+        .forEach(id=>{ document.getElementById(id).value=''; });
+      document.getElementById('leadResolutionStatus').textContent='—';
+      document.getElementById('leadOriginalSnap').textContent='No original snap';
+      document.getElementById('leadResolvedSnap').textContent='No resolved snap';
+      document.getElementById('leadPrevBtn').disabled=true;
+      document.getElementById('leadNextBtn').disabled=true;
+      return;
+    }
+
+    document.getElementById('leadTagNo').value=tag.tag_no||'';
+    document.getElementById('leadViewName').value=tag.view_name||'';
+    document.getElementById('leadModelName').value=tag.model_file||'';
+    document.getElementById('leadDescription').value=tag.description||'';
+    document.getElementById('leadResolution').value=tag.resolution||'';
+    document.getElementById('leadReviewDate').value=tag.tag_date||'';
+
+    var st=tag.resolution_status||'NOT_STARTED';
+    document.getElementById('leadResolutionStatus').textContent=st;
+
+    /* original snap */
+    var orig=document.getElementById('leadOriginalSnap');
+    if(tag.original_snap_path){
+      orig.innerHTML=`<img src="/${encodePath(tag.original_snap_path)}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" onerror="this.parentElement.textContent='Image not found'">`;
+    } else { orig.textContent='No original snap'; }
+
+    /* resolved snap */
+    var res=document.getElementById('leadResolvedSnap');
+    if(tag.resolved_snap_path){
+      res.innerHTML=`<img src="/${encodePath(tag.resolved_snap_path)}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;" onerror="this.parentElement.textContent='Image not found'">`;
+    } else { res.textContent='No resolved snap'; }
+
+    /* rejection textarea */
+    var rejBtn=document.getElementById('leadRejectBtn');
+    var rejContainer=document.getElementById('leadRejectionContainer');
+    rejContainer.style.display='none';
+    document.getElementById('leadRejectionComment').value='';
+
+    var canAct=st==='SUBMITTED';
+    document.getElementById('leadApproveBtn').disabled=!canAct;
+    rejBtn.disabled=!canAct;
+
+    /* arrow boundary state */
+    document.getElementById('leadPrevBtn').disabled=(currentIdx===0);
+    document.getElementById('leadNextBtn').disabled=(currentIdx>=filteredTags.length-1);
+  }
+
+  /* ── Navigation ── */
+  document.getElementById('leadPrevBtn').addEventListener('click',()=>{ if(currentIdx>0){currentIdx--;renderCurrentTag();} });
+  document.getElementById('leadNextBtn').addEventListener('click',()=>{ if(currentIdx<filteredTags.length-1){currentIdx++;renderCurrentTag();} });
+
+  /* ── Approve ── */
+  document.getElementById('leadApproveBtn').addEventListener('click', async()=>{
+    var tag=filteredTags[currentIdx]; if(!tag) return;
+    if(!confirm('Approve this tag?')) return;
+    try{
+      await apiFetch(`/api/tags/${tag.id}/approve`,{ method:'POST', body:JSON.stringify({ department: tagDept }) });
+      tag.resolution_status='APPROVED';
+      renderCurrentTag(); loadSummary(); renderHistoryTable();
+      /* update allTags too */
+      var orig=allTags.find(t=>t.id===tag.id);
+      if(orig) orig.resolution_status='APPROVED';
+      alert('Approved.');
+    }catch(e){ alert('Approve failed: '+e.message); }
+  });
+
+  /* ── Reject (show textarea first, then confirm) ── */
+  document.getElementById('leadRejectBtn').addEventListener('click',()=>{
+    var rejContainer=document.getElementById('leadRejectionContainer');
+    rejContainer.style.display = rejContainer.style.display==='none'?'':'none';
+    if(rejContainer.style.display!=='none') document.getElementById('leadRejectionComment').focus();
+  });
+
+  /* Actual rejection happens from a confirm inside rejection flow */
+  document.getElementById('leadRejectionComment').addEventListener('keydown', async function(e){
+    if(e.key!=='Enter'||!e.ctrlKey) return;
+    await doReject();
+  });
+
+  /* Add a confirm-reject button dynamically after textarea */
+  (function(){
+    var btn=document.createElement('button');
+    btn.className='mrcs-btn'; btn.style.marginTop='8px'; btn.textContent='Confirm Reject';
+    btn.addEventListener('click', doReject);
+    document.getElementById('leadRejectionContainer').appendChild(btn);
+  })();
+
+  async function doReject(){
+    var tag=filteredTags[currentIdx]; if(!tag) return;
+    var comment=document.getElementById('leadRejectionComment').value.trim();
+    if(!comment){ alert('Rejection comment is required.'); return; }
+    try{
+      await apiFetch(`/api/tags/${tag.id}/reject`,{ method:'POST', body:JSON.stringify({ department: tagDept, rejectionComment:comment }) });
+      tag.resolution_status='REJECTED';
+      var orig=allTags.find(t=>t.id===tag.id);
+      if(orig) orig.resolution_status='REJECTED';
+      document.getElementById('leadRejectionContainer').style.display='none';
+      document.getElementById('leadRejectionComment').value='';
+      renderCurrentTag(); loadSummary(); renderHistoryTable();
+      alert('Rejected.');
+    }catch(e){ alert('Reject failed: '+e.message); }
+  }
+
+  /* ── History table ── */
+  document.getElementById('historyToggle').addEventListener('click',function(){
+    var body=document.getElementById('historyBody');
+    var arrow=document.getElementById('historyArrow');
+    var open=body.style.display==='none';
+    body.style.display=open?'':'none';
+    arrow.textContent=open?'▲':'▼';
+  });
+
+  document.getElementById('leHistorySearch').addEventListener('input',function(){
+    var q=this.value.toLowerCase();
+    renderHistoryTable(filteredTags.filter(t=>(t.tag_no||'').toLowerCase().includes(q)||(t.description||'').toLowerCase().includes(q)));
+  });
+
+  function renderHistoryTable(tags){
+    tags=tags||filteredTags;
+    var tbody=document.getElementById('historyTableBody');
+    if(!tags.length){
+      tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--col-muted);">No tags.</td></tr>';
+      return;
+    }
+    tbody.innerHTML=tags.map((t,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td>${esc(t.tag_no)}</td>
+        <td>${esc((t.description||'').slice(0,40))}</td>
+        <td>${esc(t.zone||'—')}</td>
+        <td>${esc(t.model_file||'—')}</td>
+        <td>${t.tag_date||'—'}</td>
+        <td>${esc((t.resolution||'—').slice(0,30))}</td>
+        <td><span class="tp-status tp-status--${(t.resolution_status||'NOT_STARTED').toLowerCase()}">${t.resolution_status||'NOT_STARTED'}</span></td>
+        <td><button class="tp-go-btn" data-fidx="${filteredTags.indexOf(t)}">Go</button></td>
+      </tr>`).join('');
+
+    tbody.querySelectorAll('.tp-go-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        currentIdx=parseInt(btn.dataset.fidx);
+        renderCurrentTag();
+        window.scrollTo({ top:0, behavior:'smooth' });
+      });
+    });
+  }
+  </script>
+</body>
+</html>

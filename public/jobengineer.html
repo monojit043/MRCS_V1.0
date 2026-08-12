@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCSjobengineer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Main CSS -->
+  <link rel="stylesheet" href="css/jobengineer2.css" />
+  <link rel="stylesheet" href="css/doclib-modal.css">
+  <link rel="stylesheet" href="css/navbar.css" />
+
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+
+    <main class="hero">
+      <div class="orb orb-left"></div>
+      <div class="orb orb-right"></div>
+      <div class="orb orb-right-small"></div>
+
+      <div class="form-card je-control-bar">
+        <div class="je-cb-row">
+          <div class="form-group" style="flex:2;min-width:180px;">
+            <label>Select Model Review</label>
+            <select id="reviewPicker"></select>
+          </div>
+          <div class="status-bar je-cb-status">
+            Status: <span id="jeStatusText">Waiting for selection</span>
+          </div>
+          <div class="form-buttons je-cb-buttons">
+            <button id="jeLoadBtn" class="mrcs-btn">Load Tags</button>
+            <button type="button" id="showInfoBtn" class="mrcs-btn">Review Info</button>
+          </div>
+        </div>
+        <input type="hidden" id="jobNoInput">
+        <input type="hidden" id="unitNoInput">
+        <input type="hidden" id="stageSelect">
+      </div>
+
+      <!-- 🔥 JE MINI DASHBOARD -->
+      <div class="je-summary-card">
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Total</div>
+          <div id="jeTotal" class="je-summary-value">0</div>
+        </div>
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Not Started</div>
+          <div id="jeNotStarted" class="je-summary-value gray">0</div>
+        </div>
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Saved</div>
+          <div id="jeSaved" class="je-summary-value yellow">0</div>
+        </div>
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Submitted</div>
+          <div id="jeSubmitted" class="je-summary-value blue">0</div>
+        </div>
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Approved</div>
+          <div id="jeApproved" class="je-summary-value green">0</div>
+        </div>
+
+        <div class="je-summary-item">
+          <div class="je-summary-label">Rejected</div>
+          <div id="jeRejected" class="je-summary-value red">0</div>
+        </div>
+
+      </div>
+
+      <!-- TAG DETAIL CARD WITH ARROWS -->
+      <div class="tag-detail-wrapper">
+
+        <!-- Left Arrow -->
+        <button class="tag-arrow tag-arrow-left" id="jePrevBtn">&#10094;</button>
+
+        <!-- MAIN CARD -->
+        <div class="form-card tag-detail-card">
+
+          <!-- top row -->
+          <div class="tag-detail-toprow">
+
+            <!-- <div class="td-item">
+              <label>Tag No</label>
+              <input type="text" id="jeTagNo" readonly>
+            </div> -->
+
+            <div class="td-item">
+              <label>Tag No</label>
+              <input type="text" id="jeTagNo" placeholder="Search tag...">
+              <small id="jeTagMatchInfo" style="color:#94a3b8;"></small>
+            </div>
+
+            <div class="td-item">
+              <label>Model Name</label>
+              <input type="text" id="jeModelName" readonly>
+            </div>
+
+            <div class="td-item">
+              <label>View Name</label>
+              <input type="text" id="jeViewName" readonly>
+            </div>
+
+            <div class="td-item">
+              <label>Zone</label>
+              <select id="zoneFilter">
+                <option value="ALL">All</option>
+              </select>
+            </div>
+
+            <div class="td-item">
+              <label>Status</label>
+              <select id="statusFilter">
+                <option value="ALL">All</option>
+                <option value="NOT_STARTED">Not Started</option>
+                <option value="SAVED">Saved</option>
+                <option value="SUBMITTED">Submitted</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+
+            <div class="td-item">
+              <label>Model Review Date</label>
+              <input type="date" id="jeReviewDate" readonly>
+            </div>
+
+          </div>
+
+          <div class="je-navigation-info">
+            <span id="jePositionInfo">Tag 0 of 0</span>
+          </div>
+
+          <!-- description header -->
+          <div class="tag-detail-headers">
+            <div class="hdr">Tag Description</div>
+            <div class="hdr">Resolution of Tag</div>
+          </div>
+
+          <!-- textareas -->
+          <div class="tag-detail-descriptions">
+            <div class="desc">
+              <textarea id="jeDescription" readonly></textarea>
+            </div>
+
+            <div class="desc">
+              <textarea id="jeResolution" placeholder="Enter your resolution details here..."></textarea>
+            </div>
+          </div>
+
+          <!-- image frames -->
+          <div class="tag-detail-images">
+
+            <div class="img-frame">
+              <div class="img-placeholder" id="jeOriginalSnap">
+                No original snap
+              </div>
+              <input type="file" accept="image/*" class="img-input">
+            </div>
+
+            <!-- <div class="img-frame">
+              <div class="img-placeholder" id="jeSnapPreview">
+                No image selected
+              </div>
+
+              <input type="file" accept="image/*" id="jeResolvedSnap" hidden>
+
+              <button type="button" class="mrcs-btn" id="jeUploadSnapBtn">
+                Attach Image
+              </button>
+            </div> -->
+
+            <div class="img-frame">
+              <div class="img-placeholder" id="jeSnapPreview">
+                No image selected
+              </div>
+            
+              <input type="file" accept="image/*" id="jeResolvedSnap" hidden>
+            
+              <div class="img-btn-group">
+                <button type="button" class="mrcs-btn" id="jeUploadSnapBtn">
+                  Attach Image
+                </button>
+            
+                <button type="button" class="mrcs-btn danger" id="jeDeleteSnapBtn">
+                  Remove Image
+                </button>
+              </div>
+            </div>
+            
+          </div>
+
+          <!-- bottom grid + actions -->
+          <div class="tag-detail-bottom">
+            <div class="tag-detail-actions">
+              <button class="mrcs-btn" id="jeSaveBtn">SAVE</button>
+              <button class="mrcs-btn" id="jeSubmitBtn">SUBMIT</button>
+            </div>
+          </div>
+
+          <div class="je-status">
+            Status: <span id="jeResolutionStatus">NOT STARTED</span>
+          </div>
+
+          <!-- Right Arrow -->
+          <button class="tag-arrow tag-arrow-right" id="jeNextBtn">&#10095;</button>
+
+        </div>
+      </div>
+
+      <!-- REVIEW INFO MODAL (merged initiation details + document library) -->
+      <div id="ri-backdrop" class="ri-backdrop" aria-hidden="true">
+        <div class="ri-modal" role="dialog" aria-modal="true">
+          <div class="ri-card">
+            <div class="ri-header">
+              <span class="ri-title">Review Information</span>
+              <button class="ri-close" id="ri-close" aria-label="Close">&times;</button>
+            </div>
+
+            <div class="ri-section-heading"><span class="ri-bar"></span> Initiation Details</div>
+            <div class="ri-fields-row">
+              <div class="ri-field">
+                <label>Date From</label>
+                <input type="text" id="ri-date-from" readonly placeholder="—" />
+              </div>
+              <div class="ri-field">
+                <label>Date To</label>
+                <input type="text" id="ri-date-to" readonly placeholder="—" />
+              </div>
+              <div class="ri-field">
+                <label>Stage</label>
+                <input type="text" id="ri-stage" readonly placeholder="—" />
+              </div>
+              <div class="ri-field">
+                <label>Review Type</label>
+                <input type="text" id="ri-type" readonly placeholder="—" />
+              </div>
+            </div>
+            <div class="ri-field ri-full">
+              <label>Description</label>
+              <textarea id="ri-description" readonly placeholder="No description provided."></textarea>
+            </div>
+
+            <div class="ri-section-heading ri-section-gap"><span class="ri-bar"></span> Document Library (NWD Files)</div>
+            <div class="ri-dl-wrap">
+              <div class="ri-dl-row ri-dl-header">
+                <div>Sl No</div>
+                <div>NWD File Name</div>
+                <div>Review Date</div>
+                <div>Upload Date</div>
+                <div>Tags</div>
+                <div>Uploaded By</div>
+              </div>
+              <div id="ri-dl-body">
+                <div class="ri-empty">Load tags first, then open Review Info.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- TAG POINTS COLLAPSIBLE CARD -->
+      <div class="form-card tagpoints-card">
+
+        <!-- Header row with title + toggle button -->
+        <div class="tagpoints-header-bar">
+          <span class="tagpoints-title">Table of Tag Points</span>
+          <button id="tagToggleBtn" class="tag-toggle-btn">+</button>
+        </div>
+
+        <!-- Collapsible content (Hidden by default or managed via CSS) -->
+        <div id="tagpointsContent" class="tagpoints-content collapsed">
+
+          <div class="tagpoints-table">
+            <!-- Header Row -->
+            <div class="tagpoints-row tagpoints-header">
+              <div>Sl No</div>
+              <div>Tag No</div>
+              <div>Tag Details</div>
+              <div>Zone</div>
+              <div>Model Name</div>
+              <div>Tag Taken Date</div>
+              <div>Resolution</div>
+              <div>Status</div>
+              <div>Go</div>
+            </div>
+
+            <!-- Dynamic rows injected by JS -->
+            <div id="tagpointsBody">
+              <div class="tagpoints-empty-msg">Load tags to view the table.</div>
+            </div>
+          </div>
+
+          <!-- Search bar at end of expanded table -->
+          <div class="tagpoints-search-footer">
+            <input type="text" id="tagSearchInput" placeholder="Search tag points..." />
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-left">
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="mailto:info@mysite.com">HELP</a>
+      </div>
+      <div class="footer-right">
+        <span>0124-289-1234</span> <span>|</span>
+        <span>EIL</span> <span>|</span>
+        <span>EIL</span>
+      </div>
+    </footer>
+
+  </div>
+
+
+  <script src="js/api.js"></script>
+  <script src="js/navbar.js"></script>
+  <script src="js/header.js"></script>
+  <script src="js/review-picker.js"></script>
+  <script src="js/job-engineer.js"></script>
+  <script src="js/doclib-modal.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      initReviewPicker("reviewPicker", (jobNo, unitNo, stage) => {
+        document.getElementById("jobNoInput").value = jobNo;
+        document.getElementById("unitNoInput").value = unitNo;
+        document.getElementById("stageSelect").value = stage;
+      });
+    });
+  </script>
+</body>
+
+</html>

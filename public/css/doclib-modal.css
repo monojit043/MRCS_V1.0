@@ -1,0 +1,192 @@
+/* Review Info Modal — merged initiation details + document library */
+
+/* Backdrop */
+.ri-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 6, 8, 0.6);
+  backdrop-filter: blur(6px);
+  padding: 28px;
+}
+.ri-backdrop.open { display: flex; }
+
+/* Modal frame */
+.ri-modal {
+  max-width: 1000px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: 16px;
+  position: relative;
+  transform: translateY(-8px) scale(0.98);
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,168,255,0.25) transparent;
+}
+.ri-backdrop.open .ri-modal {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+/* Inner card */
+.ri-card {
+  background:
+    radial-gradient(circle at top left, rgba(124, 58, 237, 0.14), transparent 55%),
+    rgba(6, 12, 18, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.75);
+  border-radius: 14px;
+  padding: 20px 26px 26px;
+  color: #e7e7eb;
+}
+
+/* Header row: title + close button */
+.ri-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.ri-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f7e18a;
+  letter-spacing: 0.5px;
+}
+.ri-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s;
+}
+.ri-close:hover { background: rgba(255, 255, 255, 0.06); }
+
+/* Section headings */
+.ri-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  margin-bottom: 12px;
+}
+.ri-section-gap { margin-top: 22px; }
+.ri-bar {
+  display: inline-block;
+  width: 3px;
+  height: 13px;
+  background: #00a8ff;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Initiation detail fields */
+.ri-fields-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+.ri-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.ri-full { margin-bottom: 4px; }
+.ri-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.ri-field input,
+.ri-field textarea {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #cbd5e1;
+  font-size: 13px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: default;
+  font-family: inherit;
+}
+.ri-field textarea {
+  min-height: 68px;
+  resize: vertical;
+}
+
+/* Document library table */
+.ri-dl-wrap {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ri-dl-row {
+  display: grid;
+  grid-template-columns: 50px 2.2fr 1.2fr 1.2fr 0.8fr 1.6fr;
+  gap: 12px;
+  padding: 9px 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.ri-dl-header {
+  background: rgba(0, 168, 255, 0.06);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+}
+#ri-dl-body .ri-dl-row {
+  color: #cbd5e1;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.07);
+}
+#ri-dl-body .ri-dl-row:nth-child(even) { background: rgba(0, 168, 255, 0.02); }
+#ri-dl-body .ri-dl-row:last-child { border-bottom: none; }
+
+.ri-nwd-link {
+  color: #60a5fa;
+  text-decoration: none;
+  font-weight: 500;
+  word-break: break-all;
+  transition: color 0.15s;
+}
+.ri-nwd-link:hover {
+  color: #93c5fd;
+  text-decoration: underline;
+}
+
+.ri-empty {
+  padding: 18px;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+/* Tag points toggle + search (not modal-related, kept here) */
+.tagpoints-card .tagpoints-content.collapsed { display: none; }
+.tagpoints-card .tagpoints-content.open { display: block; }
+
+@media (max-width: 720px) {
+  .ri-modal { max-width: 100%; }
+  .ri-fields-row { flex-direction: column; }
+  .ri-dl-row { grid-template-columns: 40px 1.5fr 1fr 1fr 0.7fr 1.2fr; font-size: 12px; }
+}

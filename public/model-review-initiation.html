@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCS — Model Review Initiation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/admin2.css" />
+  <link rel="stylesheet" href="css/initiation.css" />
+  <link rel="stylesheet" href="css/navbar.css" />
+</head>
+
+<body>
+
+  <div class="page-wrapper">
+
+    <main class="hero">
+      <div class="orb orb-left"></div>
+      <div class="orb orb-right"></div>
+      <div class="orb orb-right-small"></div>
+
+      <!-- ===== PANEL: NON-PEM DASHBOARD ===== -->
+      <div id="panelNonPEMDash" style="display:none;">
+
+        <!-- List view: all assigned reviews -->
+        <div id="npDashList">
+          <div class="form-card">
+            <div class="init-section-header">
+              <div class="init-section-title">My Assigned Model Reviews</div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <input type="text" id="npReviewSearch" class="init-search-input"
+                       placeholder="Search Job, Unit, Stage…" />
+                <span class="init-count" id="npReviewCount"></span>
+              </div>
+            </div>
+            <div id="myReviewsGrid" class="np-reviews-grid">
+              <div class="empty-state">Loading...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail view: per-review breakdown -->
+        <div id="npDashDetail" style="display:none;">
+          <button class="btn-back" id="npBackBtn">&#8592; Back to Reviews</button>
+
+          <div class="form-card">
+            <div class="np-detail-header">
+              <div class="np-detail-title" id="npDetailTitle"></div>
+              <div class="np-detail-badges" id="npDetailBadges"></div>
+            </div>
+            <div class="np-detail-info" id="npDetailInfo"></div>
+          </div>
+
+          <div class="form-card">
+            <div class="init-section-title">Tag Resolution Progress</div>
+            <div class="np-stage-breakdown" id="npStageBreakdown"></div>
+          </div>
+
+          <div class="form-card">
+            <div class="init-section-header">
+              <div class="init-section-title">Tag Details</div>
+              <input type="text" id="npTagSearch" class="init-search-input" placeholder="Search tags..." />
+            </div>
+            <div class="table-container">
+              <table class="initiation-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Tag No</th>
+                    <th>Description</th>
+                    <th>Tag Taken Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="npTagsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /panelNonPEMDash -->
+
+<!-- ===== PANEL: REVIEW DASHBOARD ===== -->
+      <div id="panelDashboard" style="display:none;">
+        <div class="form-card" id="reviewDashboardCard">
+          <div class="init-section-title">Review Dashboard — Today's Snapshot</div>
+          <div class="summary-stats" id="summaryStats">
+            <div class="empty-state">Loading...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PANEL: INITIATE REVIEWS ===== -->
+      <div id="panelInitiate" style="display:none;">
+
+        <!-- Create form -->
+        <div class="form-card" id="createFormCard">
+          <div class="init-section-title">Initiate New Model Review</div>
+
+          <div class="init-form-grid">
+            <div class="init-field">
+              <label>Job No *</label>
+              <input type="text" id="initJobNo" placeholder="e.g. B862" />
+            </div>
+            <div class="init-field">
+              <label>Unit No *</label>
+              <input type="text" id="initUnitNo" placeholder="e.g. 101" />
+            </div>
+            <div class="init-field">
+              <label>Stage *</label>
+              <select id="initStage">
+                <option value="">— Select Stage —</option>
+                <option value="30%">30%</option>
+                <option value="60%">60%</option>
+                <option value="90%">90%</option>
+              </select>
+            </div>
+            <div class="init-field">
+              <label>Review Date From *</label>
+              <div class="date-input-wrap">
+                <input type="date" id="initReviewDateFrom" />
+                <button type="button" class="cal-btn" onclick="document.getElementById('initReviewDateFrom').showPicker()">&#128197;</button>
+              </div>
+            </div>
+            <div class="init-field">
+              <label>Review Date To *</label>
+              <div class="date-input-wrap">
+                <input type="date" id="initReviewDateTo" />
+                <button type="button" class="cal-btn" onclick="document.getElementById('initReviewDateTo').showPicker()">&#128197;</button>
+              </div>
+            </div>
+            <div class="init-field init-full-width">
+              <label>Description</label>
+              <textarea id="initDescription" placeholder="Brief description of the model review scope..."></textarea>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;">
+            <button class="mrcs-btn" id="submitInitBtn">Initiate Review</button>
+          </div>
+        </div>
+
+        <!-- Existing reviews table -->
+        <div class="form-card">
+          <div class="init-section-header">
+            <div class="init-section-title">Existing Model Reviews</div>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <input type="text" id="reviewSearchInput" class="init-search-input" placeholder="Search Job, Unit, Stage…" />
+              <span class="init-count" id="reviewCount"></span>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="initiation-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Job No</th>
+                  <th>Unit No</th>
+                  <th>Stage</th>
+                  <th>Date From</th>
+                  <th>Date To</th>
+                  <th>Description</th>
+                  <th>Initiated By</th>
+                  <th>Created At</th>
+                </tr>
+              </thead>
+              <tbody id="initiationTableBody">
+                <tr><td colspan="9" class="empty-state">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /panelInitiate -->
+
+      <!-- ===== PANEL: ASSIGN LEADS ===== -->
+      <div id="panelAssign" style="display:none;">
+        <div class="form-card" id="assignLeadsCard">
+          <div class="init-section-header">
+            <div class="init-section-title">Assign Department Leads</div>
+            <span class="init-count" id="assignReviewLabel">Select a review below</span>
+          </div>
+
+          <div class="init-form-grid" style="margin-bottom:16px;">
+            <div class="init-field">
+              <label>Select Review</label>
+              <select id="assignReviewPicker"></select>
+            </div>
+          </div>
+
+          <div id="assignFormWrap" style="display:none;">
+            <div class="init-form-grid">
+              <div class="init-field">
+                <label>Department *</label>
+                <select id="assignDeptFilter">
+                  <option value="">— Select Department —</option>
+                </select>
+              </div>
+              <div class="init-field">
+                <label>Employee *</label>
+                <select id="assignEmployee">
+                  <option value="">Select Department first</option>
+                </select>
+              </div>
+              <div class="init-field">
+                <label>Role *</label>
+                <select id="assignRole">
+                  <option value="">Select Role</option>
+                  <option value="GL">Group Lead (GL)</option>
+                  <option value="LE">Lead Engineer (LE)</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top:16px;">
+              <button class="mrcs-btn" id="confirmAssignBtn">Assign Lead</button>
+            </div>
+
+            <div style="margin-top:28px;">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--col-muted);margin-bottom:10px;">
+                Current Lead Assignments
+              </div>
+              <div class="table-container">
+                <table class="initiation-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Department</th>
+                      <th>Employee</th>
+                      <th>Role</th>
+                      <th>Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody id="assignmentsBody">
+                    <tr><td colspan="5" class="empty-state">No leads assigned yet.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /panelAssign -->
+
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left">
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="#">EIL</a> <span>•</span>
+        <a href="mailto:info@mysite.com">HELP</a>
+      </div>
+      <div class="footer-right">
+        <span>0124-289-1234</span> <span>|</span>
+        <span>EIL</span> <span>|</span>
+        <span>EIL</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/navbar.js"></script>
+  <script src="js/header.js"></script>
+  <script src="js/initiation.js"></script>
+</body>
+
+</html>

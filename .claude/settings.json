@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"d:\\\\MRCStest\\\\backend\\\\uploads\\\\permanent\" -Recurse -Directory | ForEach-Object { $_.FullName })"
+    ]
+  }
+}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCS — Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/login2.css" />
+</head>
+<body>
+
+  <div class="login-wrapper">
+
+    <!-- ===== LEFT PANEL — BRAND ===== -->
+    <div class="panel-left">
+      <div class="panel-left-inner">
+
+        <div class="brand-block">
+          <div class="brand-logo">
+            <img src="assets/eilround.gif" alt="EIL Logo" />
+          </div>
+          <div class="brand-name">MRCS</div>
+          <div class="brand-tagline">Model Review &amp; Coordination System</div>
+        </div>
+
+        <div class="brand-desc">
+          A unified platform for managing model reviews, tag allocations, and departmental coordination across all project stages.
+        </div>
+
+        <div class="brand-pills">
+          <span class="pill">30% Review</span>
+          <span class="pill">60% Review</span>
+          <span class="pill">90% Review</span>
+        </div>
+
+      </div>
+
+      <!-- Decorative circles -->
+      <div class="deco deco-1"></div>
+      <div class="deco deco-2"></div>
+      <div class="deco deco-3"></div>
+    </div>
+
+    <!-- ===== RIGHT PANEL — FORM ===== -->
+    <div class="panel-right">
+      <div class="form-card">
+
+        <div class="form-header">
+          <div class="form-title">Welcome back</div>
+          <div class="form-subtitle">Sign in to your MRCS account</div>
+        </div>
+
+        <form id="loginForm" autocomplete="on">
+
+          <div class="field">
+            <label for="username">Employee ID</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              placeholder="Enter your employee ID"
+              autocomplete="username"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Enter your password"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="toggle-pw" id="togglePw" tabindex="-1">
+                <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div id="loginError" class="error-msg" role="alert"></div>
+
+          <button type="submit" class="btn-login" id="loginBtn">
+            <span id="btnText">Sign In</span>
+            <svg id="btnSpinner" class="spinner" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style="display:none;">
+              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.3)" stroke-width="3"/>
+              <path stroke="#fff" stroke-width="3" stroke-linecap="round" d="M12 2a10 10 0 0 1 10 10"/>
+            </svg>
+          </button>
+
+        </form>
+
+        <div class="form-footer">
+          Engineers India Limited &nbsp;·&nbsp; MRCS Platform
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/login.js"></script>
+  <script>
+    // Password show/hide toggle
+    document.getElementById("togglePw").addEventListener("click", function () {
+      const pw = document.getElementById("password");
+      const icon = document.getElementById("eyeIcon");
+      if (pw.type === "password") {
+        pw.type = "text";
+        icon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>`;
+      } else {
+        pw.type = "password";
+        icon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>`;
+      }
+    });
+
+    // Loading state on submit
+    document.getElementById("loginForm").addEventListener("submit", function () {
+      const btn = document.getElementById("loginBtn");
+      document.getElementById("btnText").textContent = "Signing in…";
+      document.getElementById("btnSpinner").style.display = "inline-block";
+      btn.disabled = true;
+      // Re-enable after 4s as fallback
+      setTimeout(() => {
+        btn.disabled = false;
+        document.getElementById("btnText").textContent = "Sign In";
+        document.getElementById("btnSpinner").style.display = "none";
+      }, 4000);
+    });
+  </script>
+
+</body>
+</html>

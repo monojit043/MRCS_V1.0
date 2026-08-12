@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>MRCS — Internal Upload &amp; Finalize</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <link rel="stylesheet" href="css/uploadandfinalization5.css"/>
+  <link rel="stylesheet" href="css/navbar.css"/>
+  <link rel="stylesheet" href="css/internal.css"/>
+</head>
+<body>
+  <div class="page-wrapper">
+    <main class="hero">
+
+      <!-- ===== PANEL: UPLOAD ===== -->
+      <div id="panelUpload">
+
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Select Internal Review</label>
+              <select id="reviewPicker"></select>
+            </div>
+          </div>
+          <input type="hidden" id="ufJobNo">
+          <input type="hidden" id="ufUnitNo">
+          <input type="hidden" id="ufStage">
+        </div>
+
+        <div class="upload-container">
+          <div class="form-card upload-card">
+            <div class="upload-title">Upload NWD Folder</div>
+            <div class="upload-dropzone" id="dropzone">
+              <div class="upload-icons"></div>
+              <p class="upload-text">Drag and drop files here, or click to browse.</p>
+              <input type="file" id="uploadInput" webkitdirectory directory multiple hidden>
+            </div>
+          </div>
+
+          <div class="form-card upload-card">
+            <div class="upload-title">Uploaded Folders</div>
+            <div class="uploaded-table-container">
+              <table class="uploaded-table">
+                <thead>
+                  <tr><th>Sl No</th><th>Folder Name</th><th>No of Tags</th><th>Uploaded By</th><th>Action</th></tr>
+                </thead>
+                <tbody id="folderTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-card tag-details-card">
+          <div class="upload-title">Tag Details</div>
+          <div class="tag-search-container">
+            <input type="text" id="tagSearchInput" placeholder="Search Tag No / Description / View..." class="tag-search-input"/>
+          </div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead>
+                <tr><th>Sl No</th><th>Tag No</th><th>Tag Description</th><th>Tag Taken Date</th><th>View</th><th>Resolved By (Dept)</th></tr>
+              </thead>
+              <tbody id="tagTableBody"></tbody>
+            </table>
+          </div>
+          <div class="action-buttons">
+            <button class="btn-save" id="uploadSaveBtn">Save &amp; Lock</button>
+          </div>
+        </div>
+
+      </div><!-- /panelUpload -->
+
+      <!-- ===== PANEL: FINALIZATION ===== -->
+      <div id="panelFinalization" style="display:none;">
+
+        <div class="form-card">
+          <div class="form-row">
+            <div class="form-group" style="flex:1;">
+              <label>Select Internal Review</label>
+              <select id="finReviewPicker"></select>
+            </div>
+          </div>
+          <input type="hidden" id="finJobNo">
+          <input type="hidden" id="finUnitNo">
+          <input type="hidden" id="finStage">
+        </div>
+
+        <div class="form-card tag-details-card" id="finTagDetailsCard" style="display:none;">
+          <div class="upload-title">Tag Allocation / Reallocation</div>
+          <div class="tag-search-container">
+            <input type="text" id="finTagSearchInput" placeholder="Search..." class="tag-search-input"/>
+          </div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead>
+                <tr><th>Sl No</th><th>Tag No</th><th>Description</th><th>Date</th><th>View</th><th>Status</th><th>Resolved By</th></tr>
+              </thead>
+              <tbody id="finTagBody"></tbody>
+            </table>
+          </div>
+          <div class="action-buttons">
+            <button class="btn-save" id="finSaveBtn">Save Allocations</button>
+          </div>
+        </div>
+
+        <div class="form-card" id="finSummaryCard" style="display:none;">
+          <div class="upload-title">Department Allocation Summary</div>
+          <div class="tag-table-container">
+            <table class="tag-table">
+              <thead><tr><th>Sl No</th><th>Department</th><th>Tags Allocated</th></tr></thead>
+              <tbody id="finSummaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /panelFinalization -->
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-left"><a href="#">EIL</a> <span>•</span> <a href="#">MRCS</a></div>
+      <div class="footer-right">Internal Operations Mode</div>
+    </footer>
+  </div>
+
+  <!-- Upload overlay -->
+  <div id="uploadOverlay" class="upload-overlay">
+    <div class="upload-spinner"></div>
+    <div class="upload-text">Uploading folder… Please wait</div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/internal-navbar.js"></script>
+  <script src="js/header.js"></script>
+
+  <script>
+  /* ── Piping LE/GL guard ── */
+  (function(){
+    var role = localStorage.getItem('role')||'';
+    var dept = (localStorage.getItem('department')||'').toLowerCase();
+    if(dept!=='piping'||!['LE','GL'].includes(role)){
+      document.querySelector('main').innerHTML='<div style="padding:60px;text-align:center;color:var(--col-muted);">Access restricted — Piping LE / GL only.</div>';
+    }
+  })();
+
+  const ALL_DEPTS = ["piping","instrumentation","process","smed","electrical","general civil","structural","architecture"];
+
+  /* ── Panel routing ── */
+  function showPanel(hash){
+    document.getElementById('panelUpload').style.display       = hash==='#finalization' ? 'none':'';
+    document.getElementById('panelFinalization').style.display = hash==='#finalization' ? '':'none';
+  }
+  showPanel(window.location.hash||'#upload');
+  window.addEventListener('hashchange',()=>showPanel(window.location.hash));
+
+  /* ── Review picker helper ── */
+  async function populatePicker(selectId, onSelect){
+    try{
+      var data = await apiFetch('/api/internal/dropdown');
+      var opts = data.options||[];
+      var sel  = document.getElementById(selectId);
+      sel.innerHTML = '<option value="">— Select Internal Review —</option>'
+        + opts.map(o=>`<option value="${esc(o.job_no)}|${esc(o.unit_no)}|${esc(o.stage)}">${esc(o.job_no)} / ${esc(o.unit_no)} / ${esc(o.stage)}</option>`).join('');
+      sel.addEventListener('change', function(){
+        if(!this.value){ onSelect('','',''); return; }
+        var p = this.value.split('|');
+        onSelect(p[0],p[1],p[2]);
+      });
+    }catch(e){ console.error(e); }
+  }
+
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ══════ UPLOAD PANEL ══════ */
+  var uploadJobNo='', uploadUnitNo='', uploadStage='';
+  var currentTags=[];
+
+  populatePicker('reviewPicker',(j,u,s)=>{
+    uploadJobNo=j; uploadUnitNo=u; uploadStage=s;
+    document.getElementById('ufJobNo').value=j;
+    document.getElementById('ufUnitNo').value=u;
+    document.getElementById('ufStage').value=s;
+    if(j) { loadTags(); loadFolders(); }
+  });
+
+  var dropzone    = document.getElementById('dropzone');
+  var uploadInput = document.getElementById('uploadInput');
+  dropzone.addEventListener('click',()=>uploadInput.click());
+
+  uploadInput.addEventListener('change', async()=>{
+    var files = uploadInput.files;
+    if(!files.length) return;
+    if(!uploadJobNo||!uploadUnitNo||!uploadStage){ alert('Select an internal review first.'); return; }
+
+    var overlay = document.getElementById('uploadOverlay');
+    overlay.style.display='flex';
+    try{
+      var formData  = new FormData();
+      var folderName = null;
+      for(var f of files){
+        formData.append('files',f);
+        if(!folderName) folderName = f.webkitRelativePath.split('/')[0];
+      }
+      formData.append('originalFolderName', folderName);
+      formData.append('jobNo',  uploadJobNo);
+      formData.append('unitNo', uploadUnitNo);
+      formData.append('stage',  uploadStage);
+
+      await apiFetch('/api/internal/upload-folder',{ method:'POST', body:formData });
+      alert('Folder uploaded successfully!');
+      loadTags(); loadFolders();
+    }catch(e){
+      alert(e.message||'Upload failed.');
+    }finally{
+      overlay.style.display='none';
+      uploadInput.value='';
+    }
+  });
+
+  async function loadTags(){
+    if(!uploadJobNo) return;
+    try{
+      var data = await apiFetch(`/api/internal/tags?jobNo=${uploadJobNo}&unitNo=${uploadUnitNo}&stage=${encodeURIComponent(uploadStage)}`);
+      currentTags = data.tags||[];
+      renderTagTable(currentTags);
+    }catch(e){ console.error(e); }
+  }
+
+  function renderTagTable(tags){
+    var tbody = document.getElementById('tagTableBody');
+    tbody.innerHTML='';
+    tags.forEach((tag,i)=>{
+      var locked = tag.status==='LOCKED';
+      var row    = document.createElement('tr');
+      row.dataset.tagId = tag.id;
+      if(locked) row.classList.add('locked-row');
+      row.innerHTML = `
+        <td>${i+1}</td><td>${esc(tag.tag_no)}</td><td>${esc(tag.description)}</td>
+        <td>${tag.tag_date||''}</td><td>${esc(tag.view_name||'')}</td>
+        <td><div class="dept-checkbox-group ${locked?'disabled':''}">
+          ${ALL_DEPTS.map(d=>`<label><input type="checkbox" value="${d}" ${locked?'disabled':''}> ${d.charAt(0).toUpperCase()+d.slice(1)}</label>`).join('')}
+        </div></td>`;
+      if(tag.department){
+        var da = tag.department.split(',').map(x=>x.trim().toLowerCase());
+        row.querySelectorAll('input[type=checkbox]').forEach(cb=>{ if(da.includes(cb.value)) cb.checked=true; });
+      }
+      tbody.appendChild(row);
+    });
+  }
+
+  document.getElementById('tagSearchInput').addEventListener('input',e=>{
+    var q=e.target.value.toLowerCase();
+    renderTagTable(currentTags.filter(t=>(t.tag_no||'').toLowerCase().includes(q)||(t.description||'').toLowerCase().includes(q)||(t.view_name||'').toLowerCase().includes(q)));
+  });
+
+  document.getElementById('uploadSaveBtn').addEventListener('click', async()=>{
+    var rows   = document.querySelectorAll('#tagTableBody tr');
+    var updates=[];
+    rows.forEach(row=>{
+      var cbs = row.querySelectorAll('.dept-checkbox-group input');
+      if(!cbs.length||cbs[0].disabled) return;
+      var depts = Array.from(cbs).filter(c=>c.checked).map(c=>c.value);
+      if(depts.length) updates.push({ tagId:row.dataset.tagId, departments:depts });
+    });
+    if(!updates.length){ alert('No departments selected.'); return; }
+    try{
+      await apiFetch('/api/internal/tags/lock',{ method:'POST', body:JSON.stringify({ updates, lockedBy:localStorage.getItem('fullName')||'Unknown' }) });
+      alert('Tags locked successfully.');
+      loadTags();
+    }catch(e){ alert('Failed: '+e.message); }
+  });
+
+  async function loadFolders(){
+    if(!uploadJobNo) return;
+    try{
+      var data    = await apiFetch(`/api/internal/folders?jobNo=${uploadJobNo}&unitNo=${uploadUnitNo}&stage=${encodeURIComponent(uploadStage)}`);
+      var folders = data.folders||[];
+      var tbody   = document.getElementById('folderTableBody');
+      tbody.innerHTML = folders.map((f,i)=>`
+        <tr>
+          <td>${i+1}</td><td>${esc(f.folder_name)}</td><td>${f.tag_count}</td>
+          <td>${esc(f.uploaded_by_name||'')}</td>
+          <td><button class="delete-folder-btn" data-id="${f.id}">Delete</button></td>
+        </tr>`).join('');
+    }catch(e){ console.error(e); }
+  }
+
+  document.addEventListener('click', async e=>{
+    if(!e.target.classList.contains('delete-folder-btn')) return;
+    if(!confirm('Delete this folder and all its tags?')) return;
+    try{
+      await apiFetch(`/api/internal/folders/${e.target.dataset.id}`,{ method:'DELETE' });
+      loadTags(); loadFolders();
+    }catch(e){ alert('Delete failed: '+e.message); }
+  });
+
+  /* ══════ FINALIZATION PANEL ══════ */
+  var finJobNo='', finUnitNo='', finStage='';
+  var finTags=[];
+
+  populatePicker('finReviewPicker',(j,u,s)=>{
+    finJobNo=j; finUnitNo=u; finStage=s;
+    document.getElementById('finJobNo').value=j;
+    document.getElementById('finUnitNo').value=u;
+    document.getElementById('finStage').value=s;
+    if(j) loadFinTags();
+  });
+
+  async function loadFinTags(){
+    if(!finJobNo) return;
+    try{
+      var data = await apiFetch(`/api/internal/tags?jobNo=${finJobNo}&unitNo=${finUnitNo}&stage=${encodeURIComponent(finStage)}`);
+      finTags = data.tags||[];
+      renderFinTable(finTags);
+      renderFinSummary(finTags);
+      document.getElementById('finTagDetailsCard').style.display='';
+      document.getElementById('finSummaryCard').style.display='';
+    }catch(e){ console.error(e); }
+  }
+
+  function renderFinTable(tags){
+    var tbody=document.getElementById('finTagBody');
+    tbody.innerHTML='';
+    tags.forEach((tag,i)=>{
+      var locked=tag.status==='LOCKED';
+      var row=document.createElement('tr');
+      row.dataset.tagId=tag.id;
+      if(locked) row.classList.add('locked-row');
+      row.innerHTML=`
+        <td>${i+1}</td><td>${esc(tag.tag_no)}</td><td>${esc(tag.description)}</td>
+        <td>${tag.tag_date||''}</td><td>${esc(tag.view_name||'')}</td>
+        <td><span class="fin-status fin-status--${locked?'locked':'open'}">${locked?'LOCKED':'OPEN'}</span></td>
+        <td><div class="dept-checkbox-group ${locked?'disabled':''}">
+          ${ALL_DEPTS.map(d=>`<label><input type="checkbox" value="${d}" ${locked?'disabled':''}> ${d.charAt(0).toUpperCase()+d.slice(1)}</label>`).join('')}
+        </div></td>`;
+      if(tag.department){
+        var da=tag.department.split(',').map(x=>x.trim().toLowerCase());
+        row.querySelectorAll('input[type=checkbox]').forEach(cb=>{ if(da.includes(cb.value)) cb.checked=true; });
+      }
+      tbody.appendChild(row);
+    });
+  }
+
+  document.getElementById('finTagSearchInput').addEventListener('input',e=>{
+    var q=e.target.value.toLowerCase();
+    renderFinTable(finTags.filter(t=>(t.tag_no||'').toLowerCase().includes(q)||(t.description||'').toLowerCase().includes(q)));
+  });
+
+  document.getElementById('finSaveBtn').addEventListener('click', async()=>{
+    var rows=document.querySelectorAll('#finTagBody tr');
+    var updates=[];
+    rows.forEach(row=>{
+      var cbs=row.querySelectorAll('.dept-checkbox-group input');
+      if(!cbs.length) return;
+      var depts=Array.from(cbs).filter(c=>c.checked).map(c=>c.value);
+      if(depts.length) updates.push({ tagId:row.dataset.tagId, departments:depts });
+    });
+    if(!updates.length){ alert('No departments selected.'); return; }
+    try{
+      await apiFetch('/api/internal/tags/lock',{ method:'POST', body:JSON.stringify({ updates, lockedBy:localStorage.getItem('fullName')||'Unknown' }) });
+      alert('Allocations saved.');
+      loadFinTags();
+    }catch(e){ alert('Failed: '+e.message); }
+  });
+
+  function renderFinSummary(tags){
+    var deptCount={};
+    tags.forEach(t=>{
+      if(t.department) t.department.split(',').map(d=>d.trim()).filter(Boolean).forEach(d=>{
+        var k=d.charAt(0).toUpperCase()+d.slice(1).toLowerCase();
+        deptCount[k]=(deptCount[k]||0)+1;
+      });
+    });
+    var tbody=document.getElementById('finSummaryBody');
+    var entries=Object.entries(deptCount).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length){ tbody.innerHTML='<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--col-muted);">No tags allocated yet.</td></tr>'; return; }
+    tbody.innerHTML=entries.map(([d,n],i)=>`<tr><td>${i+1}</td><td>${d}</td><td>${n}</td></tr>`).join('')
+      + `<tr class="fin-total-row"><td colspan="2">Total</td><td>${entries.reduce((s,[,n])=>s+n,0)}</td></tr>`;
+  }
+  </script>
+</body>
+</html>

@@ -1,0 +1,319 @@
+/* ===== GLOBAL RESET ===== */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: "Poppins", system-ui, sans-serif;
+    background: #020b0f;
+}
+
+/* ===== TOP MRCS HEADER ===== */
+.site-header {
+    height: 60px;
+    width: 100%;
+    background: #ffffff;
+    border-bottom: 2px solid #7c3aed;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+    overflow: hidden;
+    position: relative;
+    z-index: 10;
+}
+
+/* LEFT SIDE */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* MRCS LOGO (GIF) */
+.logo {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* MRCS TEXT */
+.brand-name {
+    font-size: 40px;
+    font-weight: 500;
+    color: #230707;
+    line-height: 1;
+}
+
+/* RIGHT SIDE */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.home-text {
+    font-size: 11px;
+    color: #200808;
+    line-height: 1;
+}
+
+.section-text {
+    font-size: 11px;
+    color: #ffffff;
+    background: #7c3aed;
+    padding: 3px 9px;
+    border-radius: 2px;
+    font-weight: 500;
+    line-height: 1;
+}
+
+/* ===== LAYOUT BELOW HEADER ===== */
+
+/* OUTER CARD / PAGE */
+.page-wrapper {
+    position: relative;
+    width: 100%;
+    /* full width */
+    max-width: 100%;
+    /* no smaller than container */
+    min-height: calc(100vh - 60px);
+    /* full height minus header */
+    margin: 0;
+    /* no side gap */
+    border-radius: 0 0 28px 28px;
+    /* match header at top, rounded at bottom */
+    overflow: hidden;
+    padding: 24px 56px 56px;
+    background: radial-gradient(circle at 80% 60%, #163c2e 0px, #020b0f 60%);
+    color: #f7f7f7;
+}
+
+
+
+/* ===== NAVBAR INSIDE CARD ===== */
+.navbar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    /* center horizontally */
+    align-items: center;
+}
+
+
+/* Liberate text logo */
+.brand-logo {
+    font-weight: 600;
+    font-size: 1.3rem;
+    letter-spacing: 0.03em;
+}
+
+.logo-main {
+    color: #f7f7f7;
+}
+
+.logo-accent {
+    color: #f7e18a;
+}
+
+/* NAV LINKS */
+.nav-links {
+    display: flex;
+    gap: 55px;
+    /* spacing between links */
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #e7e7e7;
+    position: relative;
+    padding-bottom: 4px;
+}
+
+.nav-links a::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 0;
+    height: 2px;
+    background-color: #f7e18a;
+    transition: width 0.25s ease;
+}
+
+.nav-links a:hover::after {
+    width: 100%;
+}
+
+/* AUTH BUTTONS */
+.auth-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+.btn {
+    border: none;
+    border-radius: 14px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    padding: 10px 26px;
+    cursor: pointer;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease,
+        color 0.15s ease;
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background: #f6d768;
+    color: #1a1a1a;
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.35);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
+}
+
+.btn-outline {
+    background: #ffffff;
+    color: #151515;
+}
+
+.btn-outline:hover {
+    background: #f3f3f3;
+}
+
+/* ===== HERO SECTION ===== */
+.hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: calc(100vh - 160px);
+    padding-top: 40px;
+}
+
+/* HERO TEXT */
+.hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 520px;
+}
+
+.eyebrow {
+    font-size: 1.1rem;
+    font-weight: 300;
+    margin-bottom: 16px;
+    opacity: 0.9;
+}
+
+.hero h1 {
+    font-size: clamp(2.4rem, 3vw + 1.6rem, 3.4rem);
+    line-height: 1.25;
+    font-weight: 500;
+}
+
+.highlight {
+    color: #f7e18a;
+}
+
+/* BACKGROUND ORBS / PLANET */
+.orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(0.2px);
+}
+
+/* faint circular glow top-left */
+.orb-left {
+    width: 420px;
+    height: 420px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    top: -140px;
+    left: -120px;
+}
+
+/* main planet glow bottom-right */
+.orb-right {
+    width: 420px;
+    height: 420px;
+    right: 100px;
+    bottom: -40px;
+    background:
+        radial-gradient(circle at 40% 30%, rgba(248, 242, 163, 0.95), transparent 48%),
+        radial-gradient(circle at 60% 70%, rgba(70, 163, 79, 0.95), transparent 60%),
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.96), rgba(0, 0, 0, 0.96));
+    box-shadow:
+        0 0 80px rgba(197, 255, 167, 0.38),
+        0 0 180px rgba(0, 0, 0, 0.6) inset;
+}
+
+/* second faint ring on right */
+.orb-right-small {
+    width: 460px;
+    height: 460px;
+    right: 20px;
+    bottom: -160px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 900px) {
+    .page-wrapper {
+        padding: 20px 24px 36px;
+    }
+
+    .navbar {
+        gap: 16px;
+    }
+
+    .nav-links {
+        display: none;
+        /* simplify for smaller screens */
+    }
+
+    .hero {
+        min-height: auto;
+        padding-top: 60px;
+        padding-bottom: 40px;
+    }
+
+    .orb-right,
+    .orb-right-small {
+        opacity: 0.6;
+    }
+}
+
+@media (max-width: 600px) {
+    .auth-buttons .btn {
+        padding: 8px 18px;
+        font-size: 0.85rem;
+    }
+
+    .hero-content h1 {
+        font-size: 2.2rem;
+    }
+}

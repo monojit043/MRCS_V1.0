@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MRCS — Attendance</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            background: #f0f6ff;
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(0, 120, 255, 0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 168, 255, 0.06) 0%, transparent 60%);
+        }
+
+        /* ── CARD ── */
+        .card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow:
+                0 4px 6px rgba(0, 80, 200, 0.05),
+                0 12px 40px rgba(0, 80, 200, 0.10);
+            width: 100%;
+            max-width: 440px;
+            overflow: hidden;
+        }
+
+        /* ── HEADER STRIP ── */
+        .card-header {
+            background: linear-gradient(130deg, #0057c8 0%, #0099f0 100%);
+            padding: 30px 28px 26px;
+            text-align: center;
+            position: relative;
+        }
+
+        .card-header::after {
+            content: "";
+            position: absolute;
+            bottom: -1px; left: 0; right: 0;
+            height: 20px;
+            background: #ffffff;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .brand {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 0.20em;
+            color: #ffffff;
+            margin-bottom: 6px;
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.80);
+        }
+
+        /* ── BODY ── */
+        .card-body {
+            padding: 20px 28px 32px;
+        }
+
+        .section-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: #94a3b8;
+            margin: 20px 0 14px;
+        }
+
+        .section-label:first-child { margin-top: 0; }
+
+        /* ── FORM FIELDS ── */
+        .field {
+            margin-bottom: 16px;
+        }
+
+        .field label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #475569;
+            margin-bottom: 7px;
+        }
+
+        .req { color: #e53e3e; font-size: 13px; }
+
+        .field input {
+            width: 100%;
+            background: #f8fafc;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 12px 15px;
+            font-size: 15px;
+            color: #1e293b;
+            outline: none;
+            transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+        }
+
+        .field input:focus {
+            border-color: #0078f0;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 120, 240, 0.12);
+        }
+
+        .field input::placeholder { color: #b0bec5; font-size: 14px; }
+
+        /* ── DIVIDER ── */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 22px 0 6px;
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .divider::before, .divider::after {
+            content: ""; flex: 1;
+            height: 1px; background: #e9eef5;
+        }
+
+        /* ── SUBMIT BUTTON ── */
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(130deg, #0057c8, #0099f0);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            margin-top: 24px;
+            transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
+            box-shadow: 0 4px 14px rgba(0, 120, 240, 0.30);
+        }
+
+        .btn-submit:hover  { opacity: 0.92; box-shadow: 0 6px 18px rgba(0, 120, 240, 0.38); }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:disabled {
+            background: #94a3b8;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 1;
+        }
+
+        /* ── MESSAGE ── */
+        #message {
+            min-height: 0;
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        #message.visible {
+            max-height: 80px;
+            padding: 12px 16px;
+            margin-top: 16px;
+        }
+
+        #message.success {
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            color: #16a34a;
+        }
+
+        #message.error {
+            background: #fff5f5;
+            border: 1.5px solid #fca5a5;
+            color: #dc2626;
+        }
+
+        /* ── FOOTER ── */
+        .card-footer {
+            text-align: center;
+            padding: 0 28px 22px;
+            font-size: 11px;
+            color: #b0bec5;
+            letter-spacing: 0.03em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+
+        <div class="card-header">
+            <div class="brand">MRCS</div>
+            <div class="brand-sub">Model Review Attendance Registration</div>
+        </div>
+
+        <div class="card-body">
+
+            <div class="section-label">Required Information</div>
+
+            <div class="field">
+                <label>Full Name <span class="req">*</span></label>
+                <input type="text" id="name" placeholder="Enter your full name" autocomplete="name" />
+            </div>
+
+            <div class="field">
+                <label>Phone Number <span class="req">*</span></label>
+                <input type="tel" id="phone" placeholder="10-digit mobile number" autocomplete="tel" />
+            </div>
+
+            <div class="divider">Optional</div>
+
+            <div class="field">
+                <label>Company / Organisation</label>
+                <input type="text" id="company" placeholder="Your company name" />
+            </div>
+
+            <div class="field">
+                <label>Designation</label>
+                <input type="text" id="designation" placeholder="e.g. Senior Engineer" />
+            </div>
+
+            <button class="btn-submit" onclick="submitAttendance()">Mark Attendance</button>
+
+            <div id="message"></div>
+
+        </div>
+
+        <div class="card-footer">Engineers India Limited &nbsp;·&nbsp; MRCS Platform</div>
+
+    </div>
+
+    <script src="js/scan.js"></script>
+    <script>
+        // Auto-format phone: digits only, max 10
+        document.getElementById("phone").addEventListener("input", function () {
+            this.value = this.value.replace(/\D/g, "").slice(0, 10);
+        });
+    </script>
+</body>
+</html>

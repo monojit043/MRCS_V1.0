@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>MRCS — Site Workflow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="css/navbar.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --nb-font: 'Inter', 'Aptos Narrow', Calibri, sans-serif;
+      --nb-bg:      #020c18;
+      --nb-accent:  #00c8ff;
+      --nb-accent2: #00ff9d;
+      --nb-border:  rgba(0,168,255,0.15);
+      --nb-text:    rgba(255,255,255,0.80);
+      --nb-dim:     rgba(255,255,255,0.42);
+
+      --c-pem:   #00c8ff;
+      --c-le:    #00ff9d;
+      --c-je:    #ffb800;
+      --c-all:   #c084fc;
+      --c-auto:  #94a3b8;
+
+      --line-color: rgba(0,168,255,0.18);
+    }
+
+    body {
+      background: var(--nb-bg);
+      font-family: var(--nb-font);
+      color: var(--nb-text);
+      min-height: 100vh;
+    }
+
+    /* ── Page wrapper (offset for navbar) ── */
+    .wf-page {
+      padding: 48px 40px 80px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    /* ── Page header ── */
+    .wf-header {
+      text-align: center;
+      margin-bottom: 56px;
+    }
+
+    .wf-header-eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--nb-accent);
+      margin-bottom: 12px;
+    }
+
+    .wf-header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -.01em;
+      margin-bottom: 10px;
+    }
+
+    .wf-header p {
+      font-size: 14px;
+      color: var(--nb-dim);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.7;
+    }
+
+    /* ── Legend ── */
+    .wf-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      justify-content: center;
+      margin-bottom: 52px;
+    }
+
+    .wf-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11.5px;
+      color: var(--nb-dim);
+    }
+
+    .wf-legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Phase section ── */
+    .wf-phase {
+      margin-bottom: 10px;
+    }
+
+    .wf-phase-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.22);
+      margin-bottom: 6px;
+      margin-left: 28px;
+    }
+
+    .wf-phase-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--line-color);
+    }
+
+    /* ── Timeline container ── */
+    .wf-timeline {
+      position: relative;
+      padding-left: 56px;
+    }
+
+    /* Vertical line */
+    .wf-timeline::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      background: linear-gradient(to bottom,
+        rgba(0,200,255,0.40) 0%,
+        rgba(0,200,255,0.15) 60%,
+        rgba(0,200,255,0.05) 100%);
+    }
+
+    /* ── Step card ── */
+    .wf-step {
+      position: relative;
+      margin-bottom: 20px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid var(--nb-border);
+      border-radius: 10px;
+      padding: 18px 22px 18px 24px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .wf-step:hover {
+      background: rgba(0,168,255,0.04);
+      border-color: rgba(0,168,255,0.28);
+    }
+
+    /* Step number bubble */
+    .wf-step-num {
+      position: absolute;
+      left: -46px;
+      top: 18px;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #020c18;
+      border: 2px solid var(--nb-accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--nb-accent);
+      box-shadow: 0 0 12px rgba(0,200,255,0.22);
+      z-index: 1;
+    }
+
+    /* ── Step top row ── */
+    .wf-step-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .wf-step-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+
+    /* Role badges */
+    .wf-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .wf-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      white-space: nowrap;
+    }
+
+    .wf-badge--pem   { background: rgba(0,200,255,0.12); border: 1px solid rgba(0,200,255,0.35); color: var(--c-pem); }
+    .wf-badge--le    { background: rgba(0,255,157,0.10); border: 1px solid rgba(0,255,157,0.32); color: var(--c-le); }
+    .wf-badge--je    { background: rgba(255,184,0,0.10); border: 1px solid rgba(255,184,0,0.32); color: var(--c-je); }
+    .wf-badge--all   { background: rgba(192,132,252,0.10); border: 1px solid rgba(192,132,252,0.32); color: var(--c-all); }
+    .wf-badge--auto  { background: rgba(148,163,184,0.10); border: 1px solid rgba(148,163,184,0.28); color: var(--c-auto); }
+
+    /* ── Step body ── */
+    .wf-step-body {
+      font-size: 13px;
+      color: rgba(255,255,255,0.68);
+      line-height: 1.65;
+      margin-bottom: 10px;
+    }
+
+    /* ── Detail chips (page / table hints) ── */
+    .wf-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .wf-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px;
+      color: var(--nb-dim);
+    }
+
+    .wf-chip svg { flex-shrink: 0; opacity: 0.7; }
+
+    /* Page chip accent */
+    .wf-chip--page { border-color: rgba(0,200,255,0.18); color: rgba(0,200,255,0.75); }
+    .wf-chip--warn { border-color: rgba(255,184,0,0.25); color: rgba(255,184,0,0.80); }
+    .wf-chip--ok   { border-color: rgba(0,255,157,0.22); color: rgba(0,255,157,0.75); }
+
+    /* ── Sub-list ── */
+    .wf-list {
+      margin: 8px 0 0 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .wf-list-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 12.5px;
+      color: rgba(255,255,255,0.60);
+      line-height: 1.5;
+    }
+
+    .wf-list-item::before {
+      content: '›';
+      color: var(--nb-accent);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 0px;
+    }
+
+    /* ── Divider between phases ── */
+    .wf-phase-gap { height: 12px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      .wf-page { padding: 32px 18px 60px; }
+      .wf-step-top { flex-direction: column; gap: 8px; }
+      .wf-header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrapper">
+<div class="wf-page">
+
+  <!-- ── Page header ── -->
+  <div class="wf-header">
+    <div class="wf-header-eyebrow">MRCS Platform</div>
+    <h1>Site Workflow Guide</h1>
+    <p>Complete step-by-step guide to the Model Review Comments Resolution Sheet process — from review initiation to CRS report generation.</p>
+  </div>
+
+  <!-- ── Legend ── -->
+  <div class="wf-legend">
+    <div class="wf-legend-item"><div class="wf-legend-dot" style="background:var(--c-pem)"></div>PEM GL / PEM LE</div>
+    <div class="wf-legend-item"><div class="wf-legend-dot" style="background:var(--c-le)"></div>Dept GL / Dept LE</div>
+    <div class="wf-legend-item"><div class="wf-legend-dot" style="background:var(--c-je)"></div>Job Engineer (JE)</div>
+    <div class="wf-legend-item"><div class="wf-legend-dot" style="background:var(--c-all)"></div>All Participants</div>
+    <div class="wf-legend-item"><div class="wf-legend-dot" style="background:var(--c-auto)"></div>System / Auto</div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       PHASE 1 — SETUP
+       ════════════════════════════════════ -->
+  <div class="wf-phase">
+    <div class="wf-phase-label">Phase 1 — Setup &amp; Initiation</div>
+
+    <div class="wf-timeline">
+
+      <!-- Step 1 -->
+      <div class="wf-step">
+        <div class="wf-step-num">1</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Initiate the Model Review</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          PEM GL or PEM LE creates a new model review by entering the job details and review window.
+          <div class="wf-list">
+            <div class="wf-list-item">Enter <strong>Job Number</strong>, <strong>Unit Number</strong>, and <strong>Review Stage</strong> (30% / 60% / 90%)</div>
+            <div class="wf-list-item">Set the <strong>Review Date range</strong> (From → To) and provide a description</div>
+            <div class="wf-list-item">Select <strong>Review Type</strong>: External or Internal</div>
+            <div class="wf-list-item">Only one review can exist per Job + Unit + Stage combination</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Model Review Initiation page → Initiate Reviews tab
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wf-step">
+        <div class="wf-step-num">2</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Assign GL &amp; LE for Each Department</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          After initiating the review, PEM assigns a Group Lead (GL) and Lead Engineer (LE) for each participating discipline department.
+          <div class="wf-list">
+            <div class="wf-list-item">Select the Job + Unit + Stage, then assign by <strong>employee ID + department + role (GL or LE)</strong></div>
+            <div class="wf-list-item">Departments: Piping, Civil, Electrical, Mechanical, Instrumentation, etc.</div>
+            <div class="wf-list-item">An <strong>email notification</strong> is automatically sent to each newly assigned person</div>
+            <div class="wf-list-item">Multiple GL/LE can be assigned per department if needed</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Model Review Initiation page → Assign Leads tab
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wf-step">
+        <div class="wf-step-num">3</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Add Job Engineers (JE) per Department</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--le">Dept GL</span>
+            <span class="wf-badge wf-badge--le">Dept LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Each department's GL or LE registers the Job Engineers who will be resolving tags during the review.
+          <div class="wf-list">
+            <div class="wf-list-item">A GL/LE can only add JEs <strong>within their own department</strong></div>
+            <div class="wf-list-item">PEM can add JEs to any department</div>
+            <div class="wf-list-item">JEs are linked to a Job + Unit + Stage for access scoping</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Administration page → Add JE tab
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="wf-step">
+        <div class="wf-step-num">4</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Upload Model Folder &amp; Assign Tags to Departments</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          PEM uploads the 3D model review folder (XML + HTML + images). Tags are extracted automatically. PEM then locks and allocates each tag to one or more departments.
+          <div class="wf-list">
+            <div class="wf-list-item"><strong>Upload:</strong> Select and upload the model folder — tags are parsed from the XML file and snapshot images are mapped automatically</div>
+            <div class="wf-list-item"><strong>Lock &amp; Assign:</strong> For each tag, select which department(s) are responsible, then lock the assignment</div>
+            <div class="wf-list-item">Once locked, each department's assigned tags appear with status <strong>NOT STARTED</strong></div>
+            <div class="wf-list-item">Tag reassignment is blocked permanently once the CRS report has been generated</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Upload &amp; Finalize page → Upload tab
+          </span>
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Upload &amp; Finalize page → Tag Finalization tab
+          </span>
+        </div>
+      </div>
+
+    </div><!-- /wf-timeline -->
+  </div><!-- /phase 1 -->
+
+  <div class="wf-phase-gap"></div>
+
+  <!-- ════════════════════════════════════
+       PHASE 2 — PRE-MEETING
+       ════════════════════════════════════ -->
+  <div class="wf-phase">
+    <div class="wf-phase-label">Phase 2 — Pre-Meeting (Prerequisites &amp; Attendance)</div>
+
+    <div class="wf-timeline">
+
+      <!-- Step 5 -->
+      <div class="wf-step">
+        <div class="wf-step-num">5</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Verify &amp; Submit Prerequisites</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--le">Dept GL</span>
+            <span class="wf-badge wf-badge--le">Dept LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Each department's GL or LE must review a checklist of pre-defined prerequisites for the given review stage and confirm their readiness before the meeting.
+          <div class="wf-list">
+            <div class="wf-list-item">Prerequisites are pre-defined per stage and department (master list)</div>
+            <div class="wf-list-item">Each item is marked <strong>Accepted</strong> or given an <strong>Exception Reason</strong></div>
+            <div class="wf-list-item">Once satisfied, click <strong>Submit</strong> — this locks the form for that department (<em>status: Submitted, is_locked: true</em>)</div>
+            <div class="wf-list-item">An unlocked edit option exists until the QR code is generated</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Lead Engineer page → Model Review Preparation tab
+          </span>
+          <span class="wf-chip wf-chip--warn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            All departments must submit before QR can be generated
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="wf-step">
+        <div class="wf-step-num">6</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Generate QR Code for Attendance</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Once all departments have submitted their prerequisites, PEM generates a QR code to be displayed at the meeting venue.
+          <div class="wf-list">
+            <div class="wf-list-item">System checks that all required departments have <strong>locked and submitted</strong> prerequisites — blocked otherwise</div>
+            <div class="wf-list-item">QR token is valid for <strong>3 minutes only</strong> — regenerate as needed during the meeting</div>
+            <div class="wf-list-item">Generating the QR <strong>permanently locks</strong> all prerequisite forms — no further edits allowed</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Administration page → Prerequisites &amp; Attendance tab
+          </span>
+          <span class="wf-chip wf-chip--warn">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            QR expires every 3 minutes — regenerate during the meeting
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="wf-step">
+        <div class="wf-step-num">7</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Scan QR — Mark Attendance</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--all">All Participants</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Every attendee at the model review meeting scans the displayed QR code on their phone and fills in their details. No login is required.
+          <div class="wf-list">
+            <div class="wf-list-item">Enter <strong>Name, Phone Number, Company / Organisation, Designation</strong></div>
+            <div class="wf-list-item">System prevents duplicate attendance for the same person on the same day</div>
+            <div class="wf-list-item">Attendance is recorded against the active Job + Unit + Stage automatically</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><circle cx="12" cy="13" r="3"/></svg>
+            Scan page (phone-friendly)
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="wf-phase-gap"></div>
+
+  <!-- ════════════════════════════════════
+       PHASE 3 — TAG RESOLUTION
+       ════════════════════════════════════ -->
+  <div class="wf-phase">
+    <div class="wf-phase-label">Phase 3 — Tag Resolution &amp; Approval</div>
+
+    <div class="wf-timeline">
+
+      <!-- Step 8 -->
+      <div class="wf-step">
+        <div class="wf-step-num">8</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Resolve Tags (Write Resolution &amp; Upload Image)</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--je">Job Engineer</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Each JE works on the tags allocated to their department. For every tag, they write a resolution and optionally attach a resolved snapshot image.
+          <div class="wf-list">
+            <div class="wf-list-item"><strong>Save Draft:</strong> Write the resolution text and upload a resolved image — tag moves to <em>SAVED</em> status</div>
+            <div class="wf-list-item"><strong>Submit:</strong> Once confident, submit the resolution for LE/GL review — tag moves to <em>SUBMITTED</em> status</div>
+            <div class="wf-list-item">A saved draft can be edited before submitting</div>
+            <div class="wf-list-item">After rejection by LE/GL, the JE must re-save and re-submit</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            Job Engineer page
+          </span>
+          <span class="wf-chip">
+            Status flow: NOT STARTED → SAVED → SUBMITTED
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 9 -->
+      <div class="wf-step">
+        <div class="wf-step-num">9</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Approve or Reject Tags</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--le">Dept GL</span>
+            <span class="wf-badge wf-badge--le">Dept LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          The department's GL or LE reviews each submitted tag resolution and either approves it or rejects it with a comment.
+          <div class="wf-list">
+            <div class="wf-list-item"><strong>Approve:</strong> Tag moves to <em>APPROVED</em> for that department. When all departments approve a tag, it becomes <em>COMPLETED</em></div>
+            <div class="wf-list-item"><strong>Reject:</strong> A mandatory rejection comment is required. Tag is sent back to the JE as <em>REJECTED</em></div>
+            <div class="wf-list-item">If rejected, the JE must re-resolve and re-submit — the cycle repeats until approved</div>
+            <div class="wf-list-item">A tag assigned to multiple departments needs approval from each department independently</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Lead Engineer page → Approve Submitted Tags tab
+          </span>
+          <span class="wf-chip">
+            Status flow: SUBMITTED → APPROVED / REJECTED
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="wf-phase-gap"></div>
+
+  <!-- ════════════════════════════════════
+       PHASE 4 — CLOSING
+       ════════════════════════════════════ -->
+  <div class="wf-phase">
+    <div class="wf-phase-label">Phase 4 — Meeting Close-out &amp; Report</div>
+
+    <div class="wf-timeline">
+
+      <!-- Step 10 -->
+      <div class="wf-step">
+        <div class="wf-step-num">10</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Record Minutes of Meeting (MOM)</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--le">Dept GL</span>
+            <span class="wf-badge wf-badge--le">Dept LE</span>
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          During or after the meeting, action points and discussion items are recorded as Minutes of Meeting (MOM) against the job.
+          <div class="wf-list">
+            <div class="wf-list-item">Add rows for each action point with a description and responsible party (<strong>To Be Closed By</strong>)</div>
+            <div class="wf-list-item">Save at any time — rows are stored against the Job + Unit + Stage</div>
+            <div class="wf-list-item">A <strong>Print PDF</strong> option generates a printable MOM document directly from the browser</div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Administration page → MOM tab
+          </span>
+        </div>
+      </div>
+
+      <!-- Step 11 -->
+      <div class="wf-step">
+        <div class="wf-step-num">11</div>
+        <div class="wf-step-top">
+          <div class="wf-step-title">Generate CRS Report PDF</div>
+          <div class="wf-badges">
+            <span class="wf-badge wf-badge--pem">PEM GL</span>
+            <span class="wf-badge wf-badge--pem">PEM LE</span>
+          </div>
+        </div>
+        <div class="wf-step-body">
+          Once every tag across all departments has been approved, the CRS (Comments Resolution Sheet) report PDF is generated. This is the final deliverable of the model review process.
+          <div class="wf-list">
+            <div class="wf-list-item">System checks that <strong>all tag assignments across all departments</strong> have status APPROVED — blocked otherwise</div>
+            <div class="wf-list-item">Report includes a Cover page, Review Details, and one page per approved tag (original vs resolved images side-by-side)</div>
+            <div class="wf-list-item">Document Number format: <strong>[Stage]% CRS OF [Unit] UNIT</strong> — e.g. "30% CRS OF 1 UNIT"</div>
+            <div class="wf-list-item">After the CRS is generated, tag reassignment is <strong>permanently blocked</strong></div>
+          </div>
+        </div>
+        <div class="wf-chips">
+          <span class="wf-chip wf-chip--page">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            Administration page → Tag Status &amp; CRS Report tab
+          </span>
+          <span class="wf-chip wf-chip--ok">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            All tags APPROVED → PDF streams to browser for download
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Summary row ── -->
+  <div style="margin-top:52px;padding:22px 28px;border:1px solid var(--nb-border);border-top:2px solid var(--nb-accent2);border-radius:10px;background:rgba(0,255,157,0.03);">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--nb-accent2);margin-bottom:12px;">Status Glossary</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#94a3b8;font-weight:600">NOT STARTED</span> — Tag assigned, work not begun</div>
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#ffb800;font-weight:600">SAVED</span> — JE saved a draft resolution</div>
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#00c8ff;font-weight:600">SUBMITTED</span> — Sent to LE/GL for review</div>
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#ff7a8a;font-weight:600">REJECTED</span> — Returned to JE with comment</div>
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#00ff9d;font-weight:600">APPROVED</span> — LE/GL accepted the resolution</div>
+      <div style="font-size:12px;color:var(--nb-dim)"><span style="color:#00ff9d;font-weight:600">COMPLETED</span> — All departments approved the tag</div>
+    </div>
+  </div>
+
+</div><!-- /wf-page -->
+</div><!-- /page-wrapper -->
+
+<script src="js/navbar.js"></script>
+<script src="js/header.js"></script>
+</body>
+</html>
