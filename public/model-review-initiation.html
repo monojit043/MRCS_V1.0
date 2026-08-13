@@ -146,6 +146,7 @@
             <div class="init-section-title">Existing Model Reviews</div>
             <div style="display:flex;align-items:center;gap:12px;">
               <input type="text" id="reviewSearchInput" class="init-search-input" placeholder="Search Job, Unit, Stage…" />
+              <button type="button" id="clearFiltersBtn" class="btn-clear-filters" style="display:none;">Clear Filters</button>
               <span class="init-count" id="reviewCount"></span>
             </div>
           </div>
@@ -155,14 +156,14 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Job No</th>
-                  <th>Unit No</th>
-                  <th>Stage</th>
-                  <th>Date From</th>
-                  <th>Date To</th>
-                  <th>Description</th>
-                  <th>Initiated By</th>
-                  <th>Created At</th>
+                  <th>Job No <button type="button" class="col-filter-btn" data-col="job_no" aria-label="Filter Job No">&#9662;</button></th>
+                  <th>Unit No <button type="button" class="col-filter-btn" data-col="unit_no" aria-label="Filter Unit No">&#9662;</button></th>
+                  <th>Stage <button type="button" class="col-filter-btn" data-col="stage" aria-label="Filter Stage">&#9662;</button></th>
+                  <th>Date From <button type="button" class="col-filter-btn" data-col="review_date_from" aria-label="Filter Date From">&#9662;</button></th>
+                  <th>Date To <button type="button" class="col-filter-btn" data-col="review_date_to" aria-label="Filter Date To">&#9662;</button></th>
+                  <th>Description <button type="button" class="col-filter-btn" data-col="description" aria-label="Filter Description">&#9662;</button></th>
+                  <th>Initiated By <button type="button" class="col-filter-btn" data-col="created_by" aria-label="Filter Initiated By">&#9662;</button></th>
+                  <th>Created At <button type="button" class="col-filter-btn" data-col="created_at" aria-label="Filter Created At">&#9662;</button></th>
                 </tr>
               </thead>
               <tbody id="initiationTableBody">
@@ -185,11 +186,29 @@
           <div class="init-form-grid" style="margin-bottom:16px;">
             <div class="init-field">
               <label>Select Review</label>
-              <select id="assignReviewPicker"></select>
+              <div class="combo-wrap" id="assignReviewCombo">
+                <input type="text" id="assignReviewSearchInput" class="combo-input"
+                       placeholder="Search or select a review…" autocomplete="off" />
+                <span class="combo-caret" aria-hidden="true">&#9662;</span>
+                <select id="assignReviewPicker" style="display:none;"></select>
+                <div class="combo-dropdown" id="assignReviewDropdown" style="display:none;"></div>
+              </div>
             </div>
           </div>
 
           <div id="assignFormWrap" style="display:none;">
+
+            <div id="assignSuggestWrap" class="suggest-banner" style="display:none;">
+              <div class="suggest-banner-title">
+                Carry forward leads from <span id="suggestSourceStage"></span>?
+              </div>
+              <div class="suggest-list" id="suggestList"></div>
+              <div class="suggest-actions">
+                <button type="button" class="mrcs-btn" id="suggestCopyBtn">Copy Selected</button>
+                <button type="button" class="btn-dismiss-suggest" id="suggestDismissBtn">Dismiss</button>
+              </div>
+            </div>
+
             <div class="init-form-grid">
               <div class="init-field">
                 <label>Department *</label>

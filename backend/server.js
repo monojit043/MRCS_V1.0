@@ -149,6 +149,26 @@ async function initDB() {
     await pool.query(`ALTER TABLE attendance_logs        ADD COLUMN IF NOT EXISTS stage VARCHAR(50)`);
     console.log("✅ attendance tables stage column ready");
 
+    // user_assignments' unique_assignment constraint was missing stage/department,
+    // so the same person+role could never be assigned to a second stage of the
+    // same job/unit. Widen it to match how the app actually scopes assignments.
+    const { rows: uaConstraint } = await pool.query(`
+      SELECT pg_get_constraintdef(oid) AS def
+      FROM pg_constraint
+      WHERE conname = 'unique_assignment' AND conrelid = 'user_assignments'::regclass
+    `);
+    const needsFix = uaConstraint.length > 0 && !uaConstraint[0].def.includes("stage");
+    if (needsFix) {
+      await pool.query(`ALTER TABLE user_assignments DROP CONSTRAINT unique_assignment`);
+      await pool.query(`
+        ALTER TABLE user_assignments
+        ADD CONSTRAINT unique_assignment UNIQUE (employee_id, role, job_no, unit_no, stage, department)
+      `);
+      console.log("✅ user_assignments unique_assignment constraint widened to include stage+department");
+    } else {
+      console.log("✅ user_assignments unique_assignment constraint already up to date");
+    }
+
   } catch (err) {
     console.error("❌ initDB error:", err.message);
   }

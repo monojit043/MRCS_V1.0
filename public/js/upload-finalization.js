@@ -1,6 +1,8 @@
 let currentTags = [];
 const uploadInput = document.getElementById("uploadInput");
 const dropzone = document.getElementById("dropzone");
+const excelUploadInput = document.getElementById("excelUploadInput");
+const excelDropzone = document.getElementById("excelDropzone");
 
 if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
@@ -75,6 +77,52 @@ uploadInput.addEventListener("change", async () => {
   }
 });
 
+excelDropzone.addEventListener("click", () => {
+  excelUploadInput.click();
+});
+
+excelUploadInput.addEventListener("change", async () => {
+
+  const file = excelUploadInput.files[0];
+  if (!file) return;
+
+  const { jobNo, unitNo, stage } = getReview();
+
+  if (!jobNo || !unitNo || !stage) {
+    alert("Please select a Model Review first.");
+    return;
+  }
+
+  const overlay = document.getElementById("uploadOverlay");
+
+  try {
+    overlay.style.display = "flex";
+
+    const formData = new FormData();
+    formData.append("excelFile", file);
+    formData.append("jobNo", jobNo);
+    formData.append("unitNo", unitNo);
+    formData.append("stage", stage);
+
+    const result = await apiFetch("/api/upload-excel", {
+      method: "POST",
+      body: formData,
+    });
+
+    alert(`Excel uploaded successfully! ${result.tagCount} tag(s) added.`);
+
+    loadTags();
+    loadFolders();
+
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Excel upload failed. Please try again.");
+  } finally {
+    overlay.style.display = "none";
+    excelUploadInput.value = "";
+  }
+});
+
 async function loadTags() {
   const { jobNo, unitNo, stage } = getReview();
 
@@ -103,15 +151,18 @@ function renderTagTable(tags) {
   tags.forEach((tag, index) => {
     const row = document.createElement("tr");
     row.dataset.tagId = tag.id;
+    row.dataset.tagNo = tag.tag_no;
 
     const locked = tag.status === "LOCKED";
 
     row.innerHTML = `
     <td>${index + 1}</td>
+    <td>${tag.view_name || ""}</td>
     <td>${tag.tag_no}</td>
     <td>${tag.description}</td>
     <td>${tag.tag_date || ""}</td>
-    <td>${tag.view_name || ""}</td>
+    <td>${tag.nwd_file_name || ""}</td>
+    <td>${tag.folder_name || ""}</td>
     <td>${tag.original_snap_path
       ? `<button class="snap-view-btn" data-snap="${tag.original_snap_path}" data-tagno="${tag.tag_no}" title="View original snap">&#128247; View</button>`
       : '<span class="snap-na">—</span>'}</td>
@@ -286,16 +337,16 @@ ALL_DEPARTMENTS.forEach(dept => {
   reassignDeptGrid.appendChild(label);
 });
 
-function openContextMenu(e, deptCellIndex) {
+function openContextMenu(e) {
   const row = e.target.closest("tr");
   if (!row || !row.classList.contains("locked-row")) return;
 
   e.preventDefault();
 
   ctxTagId = row.dataset.tagId;
-  ctxTagNo = row.querySelector("td:nth-child(2)")?.textContent?.trim() || "";
+  ctxTagNo = row.dataset.tagNo || "";
 
-  const deptCell = row.querySelector(`td:nth-child(${deptCellIndex})`);
+  const deptCell = row.querySelector(".dept-checkbox-group");
   ctxCurrentDepts = deptCell
     ? Array.from(deptCell.querySelectorAll("input[type=checkbox]"))
         .filter(cb => cb.checked)
@@ -310,7 +361,7 @@ function openContextMenu(e, deptCellIndex) {
 document.querySelector("#panelUpload .tag-table tbody").addEventListener("contextmenu", (e) => {
   if (localStorage.getItem("role") !== "GL") return;
   ctxSourcePanel = "upload";
-  openContextMenu(e, 7);
+  openContextMenu(e);
 });
 
 document.getElementById("finTagBody").addEventListener("contextmenu", (e) => {
@@ -318,7 +369,7 @@ document.getElementById("finTagBody").addEventListener("contextmenu", (e) => {
   const dept = (localStorage.getItem("dept") || "").toLowerCase();
   if (role !== "GL" && dept !== "pem") return;
   ctxSourcePanel = "fin";
-  openContextMenu(e, 8);
+  openContextMenu(e);
 });
 
 document.addEventListener("click", () => {
@@ -429,6 +480,7 @@ function renderFinTagTable(tags) {
   tags.forEach((tag, index) => {
     const row = document.createElement("tr");
     row.dataset.tagId = tag.id;
+    row.dataset.tagNo = tag.tag_no;
 
     const isLocked = tag.status === "LOCKED";
 

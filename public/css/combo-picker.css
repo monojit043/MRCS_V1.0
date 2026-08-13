@@ -1,0 +1,81 @@
+/* ============================================================
+   Shared searchable-dropdown combobox styling, used by
+   initReviewPicker() (js/review-picker.js) on any page that embeds
+   a "Select Model Review" dropdown. Relies on each page's own
+   --col-* / --radius-* / --font-* design tokens already being defined.
+   ============================================================ */
+
+.combo-wrap {
+    position: relative;
+}
+
+.combo-wrap .combo-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(8, 20, 40, 0.92);
+    border: 1px solid var(--col-border);
+    border-radius: var(--radius-input, 8px);
+    color: var(--col-head, var(--col-text));
+    font-family: var(--font-body, inherit);
+    font-size: 14px;
+    padding: 9px 34px 9px 12px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.combo-wrap .combo-input:focus {
+    border-color: var(--col-accent);
+    box-shadow: 0 0 0 2px rgba(0, 168, 255, 0.15);
+}
+
+.combo-caret {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--col-muted);
+    font-size: 11px;
+    pointer-events: none;
+    transition: color 0.15s, transform 0.15s;
+}
+
+.combo-wrap--open .combo-caret {
+    color: var(--col-accent);
+    transform: translateY(-50%) rotate(180deg);
+}
+
+/* position:fixed + JS-computed coordinates (see review-picker.js), not
+   absolute — an absolute dropdown gets visually occluded whenever a sibling
+   .form-card later in the DOM shares the same stacking-context z-index. */
+.combo-dropdown {
+    position: fixed;
+    z-index: 1000;
+    max-height: 240px;
+    overflow-y: auto;
+    background: var(--col-surface, #0b1a2f);
+    border: 1px solid var(--col-border);
+    border-radius: var(--radius-card, 10px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.combo-item {
+    padding: 9px 14px;
+    cursor: pointer;
+    color: var(--col-text);
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.combo-item:hover {
+    background: rgba(0, 168, 255, 0.1);
+}
+
+.combo-empty {
+    padding: 10px 14px;
+    color: var(--col-muted);
+    font-size: 13px;
+    text-align: center;
+}

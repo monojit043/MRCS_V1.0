@@ -281,10 +281,14 @@ router.post("/assignments", authenticateToken, requirePEM, async (req, res) => {
       return res.status(400).json({ message: "Only GL or LE roles can be assigned here" });
     }
 
+    // department arrives pre-cased from master_employees via the department
+    // dropdown (e.g. "PEM" uppercase, everything else lowercase) — don't
+    // re-case it. department_check requires that exact casing, and
+    // lowercasing it here made PEM-department assignment fail.
     const existing = await pool.query(
       `SELECT 1 FROM user_assignments
-       WHERE employee_id=$1 AND job_no=$2 AND unit_no=$3 AND stage=$4 AND department=$5`,
-      [employeeId, jobNo, unitNo, stage, department.toLowerCase()]
+       WHERE employee_id=$1 AND job_no=$2 AND unit_no=$3 AND stage=$4 AND LOWER(department)=LOWER($5)`,
+      [employeeId, jobNo, unitNo, stage, department]
     );
 
     if (existing.rows.length > 0) {
@@ -294,7 +298,7 @@ router.post("/assignments", authenticateToken, requirePEM, async (req, res) => {
     await pool.query(
       `INSERT INTO user_assignments (employee_id, role, department, job_no, unit_no, stage)
        VALUES ($1,$2,$3,$4,$5,$6)`,
-      [employeeId, role, department.toLowerCase(), jobNo, unitNo, stage]
+      [employeeId, role, department, jobNo, unitNo, stage]
     );
 
     res.json({ message: "Lead assigned successfully" });
@@ -330,7 +334,7 @@ router.post("/assignments", authenticateToken, requirePEM, async (req, res) => {
           employee_name: assignee.employee_name,
           email:         assignee.email,
           role,
-          department:    department.toLowerCase()
+          department
         }, assignerName);
 
         console.log(`[MRCS Mailer] ✓ Assignment notification sent to ${assignee.employee_name} <${assignee.email}>`);
@@ -359,6 +363,147 @@ router.delete("/assignments", authenticateToken, requirePEM, async (req, res) =>
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to remove assignment", detail: err.message });
+  }
+});
+
+// GET /api/initiation/assignments/suggestions?jobNo=&unitNo=&stage=
+// PEM only: suggest GL/LE carried over from the most recently initiated OTHER
+// stage of the same job/unit, excluding anyone already assigned to this stage.
+router.get("/assignments/suggestions", authenticateToken, requirePEM, async (req, res) => {
+  try {
+    const { jobNo, unitNo, stage } = req.query;
+    if (!jobNo || !unitNo || !stage) {
+      return res.status(400).json({ message: "jobNo, unitNo, stage required" });
+    }
+
+    // Other stages of this job/unit, most recently initiated first
+    const otherStages = await pool.query(
+      `SELECT stage FROM model_review_initiations
+       WHERE job_no = $1 AND unit_no = $2 AND stage <> $3
+       ORDER BY created_at DESC`,
+      [jobNo, unitNo, stage]
+    );
+
+    let sourceStage = null;
+    let sourceRows = [];
+
+    for (const { stage: candidateStage } of otherStages.rows) {
+      const candidateAssignments = await pool.query(
+        `SELECT employee_id, role, department FROM user_assignments
+         WHERE job_no = $1 AND unit_no = $2 AND stage = $3 AND role IN ('GL', 'LE')`,
+        [jobNo, unitNo, candidateStage]
+      );
+      if (candidateAssignments.rows.length > 0) {
+        sourceStage = candidateStage;
+        sourceRows = candidateAssignments.rows;
+        break;
+      }
+    }
+
+    if (!sourceStage) {
+      return res.json({ sourceStage: null, suggestions: [] });
+    }
+
+    // Drop anyone already assigned (same employee+role+department) to the target stage
+    const currentAssignments = await pool.query(
+      `SELECT employee_id, role, department FROM user_assignments
+       WHERE job_no = $1 AND unit_no = $2 AND stage = $3 AND role IN ('GL', 'LE')`,
+      [jobNo, unitNo, stage]
+    );
+    const alreadyPresent = new Set(
+      currentAssignments.rows.map(r => `${r.employee_id}|${r.role}|${r.department}`)
+    );
+    const toSuggest = sourceRows.filter(
+      r => !alreadyPresent.has(`${r.employee_id}|${r.role}|${r.department}`)
+    );
+
+    if (toSuggest.length === 0) {
+      return res.json({ sourceStage, suggestions: [] });
+    }
+
+    const names = await pool.query(
+      `SELECT employee_id, employee_name FROM master_employees WHERE employee_id = ANY($1)`,
+      [toSuggest.map(r => r.employee_id)]
+    );
+    const nameMap = {};
+    names.rows.forEach(n => { nameMap[n.employee_id] = n.employee_name; });
+
+    res.json({
+      sourceStage,
+      suggestions: toSuggest.map(r => ({
+        employeeId: r.employee_id,
+        employeeName: nameMap[r.employee_id] || r.employee_id,
+        role: r.role,
+        department: r.department
+      }))
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to load assignment suggestions", detail: err.message });
+  }
+});
+
+// POST /api/initiation/assignments/copy-forward — PEM only: apply a chosen
+// subset of suggested assignments to the target stage.
+router.post("/assignments/copy-forward", authenticateToken, requirePEM, async (req, res) => {
+  try {
+    const { jobNo, unitNo, stage, assignments } = req.body;
+
+    if (!jobNo || !unitNo || !stage || !Array.isArray(assignments) || assignments.length === 0) {
+      return res.status(400).json({ message: "jobNo, unitNo, stage and at least one assignment required" });
+    }
+
+    let copied = 0;
+    for (const a of assignments) {
+      if (!a.employeeId || !a.role || !a.department) continue;
+      const result = await pool.query(
+        `INSERT INTO user_assignments (employee_id, role, department, job_no, unit_no, stage)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT ON CONSTRAINT unique_assignment DO NOTHING`,
+        // department is copied verbatim from an existing row (see /assignments/suggestions),
+        // not fresh user input — don't re-case it. department_check requires 'PEM' uppercase
+        // while every other department is lowercase; lowercasing here broke PEM copy-forward.
+        [a.employeeId, a.role, a.department, jobNo, unitNo, stage]
+      );
+      if (result.rowCount > 0) copied++;
+    }
+
+    res.json({ message: `${copied} assignment(s) copied forward`, copied });
+
+    /* ── Notify newly assigned people (fire-and-forget) ── */
+    setImmediate(async () => {
+      try {
+        const review = (await pool.query(
+          `SELECT * FROM model_review_initiations WHERE job_no=$1 AND unit_no=$2 AND stage=$3`,
+          [jobNo, unitNo, stage]
+        )).rows[0];
+        const assignerName = (await pool.query(
+          `SELECT employee_name FROM master_employees WHERE employee_id = $1`,
+          [req.user.employeeId]
+        )).rows[0]?.employee_name || req.user.employeeId;
+
+        for (const a of assignments) {
+          if (!a.employeeId || !a.role || !a.department) continue;
+          const assignee = (await pool.query(
+            `SELECT employee_name, email FROM master_employees WHERE employee_id = $1`,
+            [a.employeeId]
+          )).rows[0];
+          if (!assignee?.email) continue;
+
+          await sendAssignmentNotification(review, {
+            employee_name: assignee.employee_name,
+            email: assignee.email,
+            role: a.role,
+            department: a.department
+          }, assignerName);
+        }
+      } catch (mailErr) {
+        console.error("[MRCS Mailer] Failed to send copy-forward notifications:", mailErr.message);
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to copy assignments forward", detail: err.message });
   }
 });
 

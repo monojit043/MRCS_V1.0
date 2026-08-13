@@ -6,6 +6,7 @@
   <title>MRCS — Upload &amp; Finalize</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="css/uploadandfinalization5.css" />
+  <link rel="stylesheet" href="css/combo-picker.css" />
   <link rel="stylesheet" href="css/navbar.css" />
 </head>
 
@@ -45,23 +46,32 @@
           </div>
 
           <div class="form-card upload-card">
-            <div class="upload-title">Uploaded folders</div>
-            <div class="uploaded-table-container">
-              <table class="uploaded-table">
-                <thead>
-                  <tr>
-                    <th>Sl No</th>
-                    <th>Folder Name</th>
-                    <th>No of Tags</th>
-                    <th>Uploaded By</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
+            <div class="upload-title">Upload Excel (Manual Tags)</div>
+            <div class="upload-dropzone" id="excelDropzone">
+              <div class="upload-icons"></div>
+              <p class="upload-text">For departments without a model review — click to browse for an .xlsx/.xls file.</p>
+              <input type="file" id="excelUploadInput" accept=".xlsx,.xls" hidden>
             </div>
           </div>
 
+        </div>
+
+        <div class="form-card">
+          <div class="upload-title">Uploaded folders</div>
+          <div class="uploaded-table-container">
+            <table class="uploaded-table">
+              <thead>
+                <tr>
+                  <th>Sl No</th>
+                  <th>Folder Name</th>
+                  <th>No of Tags</th>
+                  <th>Uploaded By</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
 
         <div class="form-card tag-details-card">
@@ -75,10 +85,12 @@
               <thead>
                 <tr>
                   <th>Sl No</th>
+                  <th>View</th>
                   <th>Tag No</th>
                   <th>Tag Description</th>
                   <th>Tag Taken Date</th>
-                  <th>View</th>
+                  <th>NWD File</th>
+                  <th>Folder Name</th>
                   <th>Snap</th>
                   <th>Tag to be Resolved By</th>
                 </tr>

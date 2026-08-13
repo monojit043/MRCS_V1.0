@@ -21,11 +21,14 @@ router.post("/add-user", authenticateToken, authorize("LE"), async (req, res) =>
             }
         }
 
+        // department arrives pre-cased from master_employees (e.g. "PEM"
+        // uppercase, everything else lowercase) — don't re-case it.
+        // department_check requires that exact casing.
         await pool.query(
             `INSERT INTO user_assignments
              (employee_id, role, department, job_no, unit_no, stage)
              VALUES ($1,$2,$3,$4,$5,$6)`,
-            [employeeId, role, department.toLowerCase(), jobNo, unitNo, stage || null]
+            [employeeId, role, department, jobNo, unitNo, stage || null]
         );
 
         res.json({ message: "User assignment successful" });

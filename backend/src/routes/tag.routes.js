@@ -41,7 +41,7 @@ router.get("/tags", authenticateToken, requirePEM, async (req, res) => {
         }
 
         const result = await pool.query(
-            `SELECT 
+            `SELECT
             t.id,
             t.tag_no,
             t.description,
@@ -49,6 +49,8 @@ router.get("/tags", authenticateToken, requirePEM, async (req, res) => {
             t.view_name,
             t.status,
             t.original_snap_path,
+            uf.folder_name,
+            uf.model_file AS nwd_file_name,
             STRING_AGG(ta.department, ',') AS department
           FROM tags t
           JOIN uploaded_folders uf ON t.folder_id = uf.id
@@ -57,7 +59,7 @@ router.get("/tags", authenticateToken, requirePEM, async (req, res) => {
           WHERE j.job_no = $1
             AND j.unit_no = $2
             AND j.review_stage = $3
-          GROUP BY t.id, t.tag_no, t.description, t.tag_date, t.view_name, t.status, t.original_snap_path
+          GROUP BY t.id, t.tag_no, t.description, t.tag_date, t.view_name, t.status, t.original_snap_path, uf.folder_name, uf.model_file
           ORDER BY
             CASE WHEN t.tag_no ~ '^[0-9]+$' THEN t.tag_no::bigint END ASC NULLS LAST,
             t.tag_no ASC
