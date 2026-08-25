@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../data/db");
 const PDFDocument = require("pdfkit");
+const ExcelJS = require("exceljs");
 const fs = require("fs");
 const path = require("path");
 
@@ -197,7 +198,12 @@ function formatDate(d) {
 // ===============================
 // HEADER
 // ===============================
-function renderHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, totalPages) {
+function renderHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, totalPages, opts = {}) {
+    const {
+        title = "MODEL REVIEW COMMENTS RESOLUTION SHEET (CRS)",
+        docNoSuffix = "CRS OF",
+    } = opts;
+
     const W = uW(doc);
     const hTop = M;
     const hMid = hTop + HEADER_H / 2;
@@ -218,7 +224,7 @@ function renderHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, total
     // Centre title
     doc.font("Helvetica-Bold").fontSize(10.5).fillColor(ACCENT)
         .text(
-            "MODEL REVIEW COMMENTS RESOLUTION SHEET (CRS)",
+            title,
             M + 195, hMid - 7,
             { width: W - 195 - 195, align: "center" }
         );
@@ -226,7 +232,7 @@ function renderHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, total
     // Right meta — right-aligned stacked
     const metaTop = hTop + 10;
     doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
-        .text(`Document No. : ${stage} CRS OF ${unit} UNIT`, M, metaTop, { width: W, align: "right" });
+        .text(`Document No. : ${stage} ${docNoSuffix} ${unit} UNIT`, M, metaTop, { width: W, align: "right" });
     doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
         .text(`Revision : 0;  Page ${pageNo} of ${totalPages}`, M, metaTop + 14, { width: W, align: "right" });
     doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
@@ -239,7 +245,12 @@ function renderHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, total
 // ===============================
 // TAG CONTENT
 // ===============================
-function renderTagContent(doc, row) {
+const ANNEXURE_CAPTION =
+    "This is not a CRS — a report of all tags taken, provided as an annexure to other documents.";
+
+function renderTagContent(doc, row, opts = {}) {
+    const { isAnnexure = false } = opts;
+
     const W = uW(doc);
     const colW = (W - COL_GAP) / 2;
     const leftX = M;
@@ -254,7 +265,7 @@ function renderTagContent(doc, row) {
 
     const fields = [
         { label: "TAG NO.", value: String(row.tag_no), flex: 1 },
-        { label: "DEPARTMENT", value: row.department || "—", flex: 2 },
+        { label: "DEPARTMENT", value: row.department || "Unallocated", flex: 2 },
         { label: "TAG DATE", value: formatDate(row.tag_date), flex: 1 },
     ];
 
@@ -291,7 +302,32 @@ function renderTagContent(doc, row) {
     // ---- Two-column content area ----
     const contentTop = infoBottom + GAP;
     const contentH = bodyBottom - contentTop;
-    const TEXT_ZONE_H = 66;
+
+    // Size the text zone to fit the actual description/resolution content
+    // (was a fixed 66pt with ellipsis truncation — long descriptions got cut
+    // off). Grows to fit, capped so images always keep at least MIN_IMG_H;
+    // only text that still exceeds that generous cap falls back to ellipsis.
+    const LABEL_H = 20;   // column heading + underline + gap before body text
+    const MIN_IMG_H = 70;
+    const MAX_TEXT_H = Math.max(66, contentH - GAP - MIN_IMG_H);
+
+    const bodyFontOpts = { width: colW, lineGap: 2 };
+    doc.font("Helvetica").fontSize(8.5);
+    const descBodyH = doc.heightOfString(row.description || "—", bodyFontOpts);
+
+    let captionH = 0;
+    if (isAnnexure) {
+        doc.font("Helvetica-Oblique").fontSize(6.5);
+        captionH = doc.heightOfString(ANNEXURE_CAPTION, { width: colW }) + 6;
+    }
+    doc.font("Helvetica").fontSize(8.5);
+    const resolutionText = row.resolution || "—";
+    const resBodyH = doc.heightOfString(resolutionText, bodyFontOpts) + captionH;
+
+    const neededH = Math.max(descBodyH, resBodyH) + LABEL_H;
+    const TEXT_ZONE_H = Math.min(Math.max(neededH, 66), MAX_TEXT_H);
+    const textFits = neededH <= MAX_TEXT_H;
+
     const imgH = contentH - TEXT_ZONE_H - GAP;
 
     // Column labels
@@ -310,13 +346,20 @@ function renderTagContent(doc, row) {
         .text(row.description || "—", leftX, textY, {
             width: colW,
             height: TEXT_ZONE_H - 20,
-            ellipsis: true
+            ellipsis: !textFits
         });
+
+    let resTextY = textY;
+    if (isAnnexure) {
+        doc.font("Helvetica-Oblique").fontSize(6.5).fillColor(TEXT_LIGHT)
+            .text(ANNEXURE_CAPTION, rightX, resTextY, { width: colW });
+        resTextY += captionH;
+    }
     doc.font("Helvetica").fontSize(8.5).fillColor(TEXT_DARK)
-        .text(row.resolution || "—", rightX, textY, {
+        .text(resolutionText, rightX, resTextY, {
             width: colW,
-            height: TEXT_ZONE_H - 20,
-            ellipsis: true,
+            height: (textY + TEXT_ZONE_H - 20) - resTextY,
+            ellipsis: !textFits,
             lineGap: 2
         });
 
@@ -424,7 +467,15 @@ function renderFooter(doc) {
 // ===============================
 // COVER PAGE
 // ===============================
-function renderCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags) {
+function renderCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags, opts = {}) {
+    const {
+        title = "MODEL REVIEW COMMENTS RESOLUTION SHEET",
+        subtitle = "Comments Resolution Sheet (CRS)",
+        docNoSuffix = "CRS OF",
+        totalLabel = "Total Approved Tags",
+        disclaimer = null,
+    } = opts;
+
     const W = uW(doc);
     const H = pH(doc);
 
@@ -439,7 +490,7 @@ function renderCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags)
 
     // Doc ref top-right
     doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
-        .text(`Document No. : ${stage} CRS OF ${unit} UNIT`, M, M + 16, { width: W, align: "right" })
+        .text(`Document No. : ${stage} ${docNoSuffix} ${unit} UNIT`, M, M + 16, { width: W, align: "right" })
         .text("Revision : 0", M, M + 30, { width: W, align: "right" });
 
     // Rule below header strip
@@ -452,16 +503,29 @@ function renderCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags)
     rule(doc, centerY - 18, M + 80, M + W - 80, LIGHT_RULE, 0.5);
 
     doc.font("Helvetica-Bold").fontSize(21).fillColor(ACCENT)
-        .text("MODEL REVIEW COMMENTS RESOLUTION SHEET", M, centerY, { width: W, align: "center" });
+        .text(title, M, centerY, { width: W, align: "center" });
 
     doc.font("Helvetica").fontSize(11).fillColor(TEXT_MID)
-        .text("Comments Resolution Sheet (CRS)", M, centerY + 30, { width: W, align: "center" });
+        .text(subtitle, M, centerY + 30, { width: W, align: "center" });
+
+    // Disclaimer paragraph (annexure only) — grows the gap before the info
+    // table dynamically so it never overlaps, rather than a fixed offset.
+    let ruleY = centerY + 56;
+    if (disclaimer) {
+        const discW = W - 200;
+        const discX = M + 100;
+        const discY = centerY + 52;
+        doc.font("Helvetica-Oblique").fontSize(9).fillColor(TEXT_MID);
+        const discH = doc.heightOfString(disclaimer, { width: discW, align: "center" });
+        doc.text(disclaimer, discX, discY, { width: discW, align: "center" });
+        ruleY = discY + discH + 14;
+    }
 
     // Rule below title
-    rule(doc, centerY + 56, M + 80, M + W - 80, RULE_COLOR, 0.75);
+    rule(doc, ruleY, M + 80, M + W - 80, RULE_COLOR, 0.75);
 
     // ---- Info table ----
-    const tableY = centerY + 76;
+    const tableY = ruleY + 20;
     const tableW = 380;
     const tableX = M + (W - tableW) / 2;
     const rowH = 27;
@@ -470,7 +534,7 @@ function renderCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags)
         ["Job Number", job],
         ["Unit Number", unit],
         ["Stage", stage],
-        ["Total Approved Tags", String(totalTags)],
+        [totalLabel, String(totalTags)],
         ["Generated On", new Date().toLocaleString("en-GB")],
     ];
 
@@ -619,8 +683,40 @@ function drawDeptBadge(doc, text, x, y, containerHeight = 48) {
 }
 
 // ===============================
-// EXPORT ALL TAGS ROUTE
+// EXPORT ALL TAGS — same page format as the CRS, but includes every tag
+// regardless of allocation/approval status, and is clearly marked as not
+// being an official CRS.
 // ===============================
+const ANNEXURE_DISCLAIMER =
+    "This is not a Comments Resolution Sheet (CRS). It is a report of all tags taken during the review, provided as an annexure to other project documentation.";
+
+async function fetchAllTagsForExport(jobNo, unitNo, stage) {
+    const result = await pool.query(
+        `SELECT
+            t.tag_no,
+            t.description,
+            t.tag_date,
+            ta.department,
+            ta.resolution,
+            ta.resolution_status,
+            ta.resolved_snap_path,
+            t.original_snap_path
+         FROM tags t
+         JOIN uploaded_folders uf ON t.folder_id = uf.id
+         JOIN jobs j ON uf.job_id = j.id
+         LEFT JOIN tag_assignments ta ON ta.tag_id = t.id
+         WHERE j.job_no = $1
+           AND j.unit_no = $2
+           AND j.review_stage = $3
+         ORDER BY
+           CASE WHEN t.tag_no ~ '^[0-9]+$' THEN t.tag_no::bigint END ASC NULLS LAST,
+           t.tag_no ASC,
+           ta.department ASC NULLS LAST`,
+        [jobNo, unitNo, stage]
+    );
+    return result.rows;
+}
+
 router.get("/export-all-tags", async (req, res) => {
     try {
         const { jobNo, unitNo, stage } = req.query;
@@ -629,54 +725,41 @@ router.get("/export-all-tags", async (req, res) => {
             return res.status(400).json({ error: "Missing parameters: jobNo, unitNo, stage" });
         }
 
-        const result = await pool.query(
-            `SELECT
-                t.id,
-                t.tag_no,
-                t.description,
-                t.tag_date,
-                t.original_snap_path,
-                COALESCE(
-                    STRING_AGG(DISTINCT UPPER(ta.department), ', ' ORDER BY UPPER(ta.department)),
-                    'Unallocated'
-                ) AS departments,
-                CASE WHEN COUNT(ta.id) = 0 THEN 'Unallocated' ELSE 'Allocated' END AS alloc_status
-             FROM tags t
-             JOIN uploaded_folders uf ON t.folder_id = uf.id
-             JOIN jobs j ON uf.job_id = j.id
-             LEFT JOIN tag_assignments ta ON ta.tag_id = t.id
-             WHERE j.job_no = $1
-               AND j.unit_no = $2
-               AND j.review_stage = $3
-             GROUP BY t.id, t.tag_no, t.description, t.tag_date, t.original_snap_path
-             ORDER BY
-               CASE WHEN t.tag_no ~ '^[0-9]+$' THEN t.tag_no::bigint END ASC NULLS LAST,
-               t.tag_no ASC`,
-            [jobNo, unitNo, stage]
-        );
+        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage);
 
-        if (result.rows.length === 0) {
+        if (tags.length === 0) {
             return res.status(404).json({ error: "No tags found for the selected review." });
         }
 
-        const tags = result.rows;
         const totalPages = tags.length + 1;
 
-        const doc = new PDFDocument({ size: "A4", layout: "portrait", margin: 0, autoFirstPage: true });
+        const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: true });
 
         res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename=AllTags_${jobNo}_${unitNo}_${stage}.pdf`);
+        res.setHeader("Content-Disposition", `attachment; filename=AllTagsReport_${jobNo}_${unitNo}_${stage}.pdf`);
         doc.pipe(res);
 
         const logoPath = path.join(process.cwd(), "uploads/company-logo.png");
         const logoExists = fs.existsSync(logoPath);
 
-        renderExportCoverPage(doc, logoPath, logoExists, jobNo, unitNo, stage, tags.length);
+        const headerOpts = {
+            title: "ALL TAGS REPORT — ANNEXURE (NOT A CRS)",
+            docNoSuffix: "ALL TAGS REPORT OF",
+        };
+
+        renderCoverPage(doc, logoPath, logoExists, jobNo, unitNo, stage, tags.length, {
+            title: "ALL TAGS REPORT",
+            subtitle: "Annexure — Complete Tag Listing",
+            docNoSuffix: "ALL TAGS REPORT OF",
+            totalLabel: "Total Tags",
+            disclaimer: ANNEXURE_DISCLAIMER,
+        });
         renderFooter(doc);
 
         for (let i = 0; i < tags.length; i++) {
             doc.addPage();
-            renderExportTagPage(doc, logoPath, logoExists, jobNo, unitNo, stage, i + 2, totalPages, tags[i]);
+            renderHeader(doc, logoPath, logoExists, jobNo, unitNo, stage, i + 2, totalPages, headerOpts);
+            renderTagContent(doc, tags[i], { isAnnexure: true });
             renderFooter(doc);
         }
 
@@ -691,162 +774,74 @@ router.get("/export-all-tags", async (req, res) => {
 });
 
 // ===============================
-// EXPORT HELPERS
+// EXPORT ALL TAGS — Excel
 // ===============================
-function renderExportHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, totalPages) {
-    const W = uW(doc);
-    const hTop = M;
-    const hMid = hTop + HEADER_H / 2;
+router.get("/export-all-tags-excel", async (req, res) => {
+    try {
+        const { jobNo, unitNo, stage } = req.query;
 
-    rule(doc, hTop, M, M + W, RULE_COLOR, 1.0);
-
-    if (logoExists) {
-        doc.save();
-        doc.image(logoPath, M, hTop + 6, { fit: [175, HEADER_H - 12], valign: "center" });
-        doc.restore();
-    } else {
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXT_MID)
-            .text("COMPANY LOGO", M, hMid - 6, { width: 175, align: "center" });
-    }
-
-    doc.font("Helvetica-Bold").fontSize(10.5).fillColor(ACCENT)
-        .text("ALL TAGS EXPORT", M + 195, hMid - 7, { width: W - 390, align: "center" });
-
-    const metaTop = hTop + 10;
-    doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
-        .text(`Page ${pageNo} of ${totalPages}`, M, metaTop, { width: W, align: "right" });
-    doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
-        .text(`Job: ${job}  |  Unit: ${unit}  |  Stage: ${stage}`, M, metaTop + 14, { width: W, align: "right" });
-
-    rule(doc, hTop + HEADER_H, M, M + W, RULE_COLOR, 1.0);
-}
-
-function renderExportCoverPage(doc, logoPath, logoExists, job, unit, stage, totalTags) {
-    const W = uW(doc);
-    const H = pH(doc);
-
-    rule(doc, M, M, M + W, RULE_COLOR, 1.2);
-    rule(doc, M + 5, M, M + W, RULE_COLOR, 0.4);
-
-    if (logoExists) {
-        doc.image(logoPath, M, M + 14, { fit: [180, 48], valign: "center" });
-    }
-
-    doc.font("Helvetica").fontSize(8).fillColor(TEXT_MID)
-        .text("Model Review — Tag Export Report", M, M + 16, { width: W, align: "right" })
-        .text(new Date().toLocaleString("en-GB"), M, M + 30, { width: W, align: "right" });
-
-    rule(doc, M + 68, M, M + W, RULE_COLOR, 0.75);
-
-    const centerY = H * 0.38;
-
-    rule(doc, centerY - 18, M + 60, M + W - 60, LIGHT_RULE, 0.5);
-
-    doc.font("Helvetica-Bold").fontSize(22).fillColor(ACCENT)
-        .text("ALL TAGS EXPORT", M, centerY, { width: W, align: "center" });
-    doc.font("Helvetica").fontSize(10).fillColor(TEXT_MID)
-        .text("Complete Tag Listing — All Tags Regardless of Allocation Status", M, centerY + 34, { width: W, align: "center" });
-
-    rule(doc, centerY + 58, M + 60, M + W - 60, RULE_COLOR, 0.75);
-
-    const tableW = 300;
-    const tableX = M + (W - tableW) / 2;
-    const tableY = centerY + 78;
-    const rowH   = 26;
-
-    const rows = [
-        ["Job Number",  job],
-        ["Unit Number", unit],
-        ["Stage",       stage],
-        ["Total Tags",  String(totalTags)],
-        ["Exported On", new Date().toLocaleString("en-GB")],
-    ];
-
-    rule(doc, tableY, tableX, tableX + tableW, RULE_COLOR, 0.75);
-    rows.forEach(([label, value], i) => {
-        const ry = tableY + i * rowH;
-        if (i % 2 === 0) {
-            doc.save().rect(tableX, ry, tableW, rowH).fillColor("#F5F6F8").fill().restore();
-        }
-        rule(doc, ry + rowH, tableX, tableX + tableW, LIGHT_RULE, 0.4);
-        vrule(doc, tableX + 130, ry, ry + rowH, LIGHT_RULE, 0.4);
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(TEXT_MID)
-            .text(label, tableX + 12, ry + 8, { width: 110 });
-        doc.font("Helvetica").fontSize(9).fillColor(TEXT_DARK)
-            .text(value, tableX + 142, ry + 8, { width: tableW - 154 });
-    });
-    rule(doc, tableY + rows.length * rowH, tableX, tableX + tableW, RULE_COLOR, 0.75);
-
-    rule(doc, H - M - 5, M, M + W, RULE_COLOR, 0.4);
-    rule(doc, H - M, M, M + W, RULE_COLOR, 1.2);
-}
-
-function renderExportTagPage(doc, logoPath, logoExists, job, unit, stage, pageNo, totalPages, tag) {
-    const W = uW(doc);
-
-    renderExportHeader(doc, logoPath, logoExists, job, unit, stage, pageNo, totalPages);
-
-    const bodyTop    = M + HEADER_H + GAP;
-    const bodyBottom = pH(doc) - FOOTER_H - GAP;
-
-    // Info strip
-    const INFO_STRIP_H = 52;
-    const infoY = bodyTop;
-
-    const fields = [
-        { label: "TAG NO.",       value: String(tag.tag_no),           flex: 0.9 },
-        { label: "DESCRIPTION",   value: tag.description || "—",       flex: 2.5 },
-        { label: "DEPARTMENT(S)", value: tag.departments || "—",       flex: 2.0 },
-        { label: "DATE",          value: formatDate(tag.tag_date),      flex: 0.9 },
-        { label: "STATUS",        value: tag.alloc_status || "—",      flex: 1.0 },
-    ];
-
-    const totalFlex = fields.reduce((s, f) => s + f.flex, 0);
-    let curX = M;
-
-    fields.forEach((f, i) => {
-        const fw = (W / totalFlex) * f.flex;
-        if (i > 0) vrule(doc, curX, infoY + 6, infoY + INFO_STRIP_H - 6, LIGHT_RULE, 0.5);
-        const padX = i === 0 ? 0 : 12;
-
-        doc.font("Helvetica-Bold").fontSize(6.5).fillColor(TEXT_LIGHT)
-            .text(f.label, curX + padX, infoY + 8, { width: fw - padX - 6 });
-
-        if (f.label === "STATUS") {
-            const isAllocated = f.value === "Allocated";
-            const color = isAllocated ? "#43A047" : "#FB8C00";
-            const badgeW = 72;
-            doc.save()
-                .fillColor(color)
-                .roundedRect(curX + padX, infoY + 22, badgeW, 18, 4)
-                .fill();
-            doc.fillColor("#FFFFFF").font("Helvetica-Bold").fontSize(8)
-                .text(f.value.toUpperCase(), curX + padX, infoY + 26, { width: badgeW, align: "center" });
-            doc.restore();
-        } else {
-            const fontSize = (f.label === "DESCRIPTION" || f.label === "DEPARTMENT(S)") ? 8 : 11;
-            const valueY   = (f.label === "DESCRIPTION" || f.label === "DEPARTMENT(S)") ? infoY + 20 : infoY + 20;
-            doc.font("Helvetica-Bold").fontSize(fontSize).fillColor(TEXT_DARK)
-                .text(f.value, curX + padX, valueY, { width: fw - padX - 8, ellipsis: true });
+        if (!jobNo || !unitNo || !stage) {
+            return res.status(400).json({ error: "Missing parameters: jobNo, unitNo, stage" });
         }
 
-        curX += fw;
-    });
+        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage);
 
-    const infoBottom = infoY + INFO_STRIP_H;
-    rule(doc, infoBottom, M, M + W, RULE_COLOR, 0.75);
+        if (tags.length === 0) {
+            return res.status(404).json({ error: "No tags found for the selected review." });
+        }
 
-    // Snap image — takes remaining body area
-    const snapLabelY = infoBottom + GAP;
-    doc.font("Helvetica-Bold").fontSize(8).fillColor(ACCENT)
-        .text("ORIGINAL SNAP", M, snapLabelY);
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet("All Tags");
 
-    const snapY = snapLabelY + 16;
-    const snapH = bodyBottom - snapY;
+        sheet.mergeCells("A1:F1");
+        sheet.getCell("A1").value = ANNEXURE_DISCLAIMER;
+        sheet.getCell("A1").font = { italic: true, color: { argb: "FF666666" } };
+        sheet.getCell("A1").alignment = { wrapText: true, vertical: "top" };
+        sheet.getRow(1).height = 30;
 
-    renderImage(doc, tag.original_snap_path, M, snapY, W, snapH);
+        const headerRow = sheet.getRow(3);
+        headerRow.values = ["Tag No", "Description", "Department", "Tag Date", "Status", "Resolution"];
+        headerRow.font = { bold: true };
+        headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE8EEF7" } };
 
-    rule(doc, bodyBottom, M, M + W, RULE_COLOR, 0.75);
-}
+        tags.forEach(row => {
+            const status = row.department ? (row.resolution_status || "NOT_STARTED") : "UNALLOCATED";
+            sheet.addRow([
+                row.tag_no,
+                row.description || "",
+                row.department ? row.department.toUpperCase() : "Unallocated",
+                row.tag_date ? new Date(row.tag_date).toLocaleDateString("en-GB") : "",
+                status,
+                row.resolution || "",
+            ]);
+        });
+
+        sheet.columns = [
+            { width: 12 },
+            { width: 55 },
+            { width: 18 },
+            { width: 14 },
+            { width: 16 },
+            { width: 55 },
+        ];
+        sheet.getColumn(2).alignment = { wrapText: true, vertical: "top" };
+        sheet.getColumn(6).alignment = { wrapText: true, vertical: "top" };
+
+        res.setHeader(
+            "Content-Type",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+        res.setHeader("Content-Disposition", `attachment; filename=AllTagsReport_${jobNo}_${unitNo}_${stage}.xlsx`);
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (err) {
+        console.error(err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Error generating tag export Excel" });
+        }
+    }
+});
 
 module.exports = router;

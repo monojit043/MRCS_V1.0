@@ -187,10 +187,12 @@
         <div class="form-card" id="exportActionCard" style="display:none;">
           <div class="upload-title">Export All Tags</div>
           <p style="color:var(--text-secondary,#aaa);font-size:13px;margin:0 0 18px;">
-            Downloads a PDF with every tag and its original snap image, regardless of allocation status.
+            Downloads every tag and its original snap image, regardless of allocation status — same
+            layout as the CRS, but marked as an annexure, not an official CRS.
           </p>
           <div class="action-buttons">
             <button class="btn-save" id="exportTagsPdfBtn">&#128247; Export as PDF</button>
+            <button class="btn-save" id="exportTagsExcelBtn">&#128202; Export as Excel</button>
           </div>
         </div>
 
@@ -296,6 +298,22 @@
         }
         window.open(
           "/api/report/export-all-tags"
+          + "?jobNo="  + encodeURIComponent(jobNo)
+          + "&unitNo=" + encodeURIComponent(unitNo)
+          + "&stage="  + encodeURIComponent(stage)
+        );
+      });
+
+      document.getElementById("exportTagsExcelBtn").addEventListener("click", function () {
+        const jobNo  = document.getElementById("exportJobNo").value;
+        const unitNo = document.getElementById("exportUnitNo").value;
+        const stage  = document.getElementById("exportStage").value;
+        if (!jobNo || !unitNo || !stage) {
+          alert("Please select a Model Review first.");
+          return;
+        }
+        window.open(
+          "/api/report/export-all-tags-excel"
           + "?jobNo="  + encodeURIComponent(jobNo)
           + "&unitNo=" + encodeURIComponent(unitNo)
           + "&stage="  + encodeURIComponent(stage)

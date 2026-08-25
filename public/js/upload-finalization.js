@@ -4,6 +4,14 @@ const dropzone = document.getElementById("dropzone");
 const excelUploadInput = document.getElementById("excelUploadInput");
 const excelDropzone = document.getElementById("excelDropzone");
 
+// Single source of truth for tag-department checkboxes (upload table,
+// finalization table, and the reassign-departments modal all use this).
+const ALL_DEPARTMENTS = [
+  "piping", "instrumentation", "process", "smed",
+  "electrical", "general civil", "structural", "architecture", "PEM",
+  "licensor", "client"
+];
+
 if (!localStorage.getItem("token")) {
   window.location.href = "login.html";
 }
@@ -168,7 +176,7 @@ function renderTagTable(tags) {
       : '<span class="snap-na">—</span>'}</td>
     <td>
       <div class="dept-checkbox-group ${locked ? "disabled" : ""}">
-        ${["piping", "instrumentation", "process", "smed", "electrical", "general civil", "structural", "architecture","PEM"]
+        ${ALL_DEPARTMENTS
         .map(dep => `
             <label>
               <input type="checkbox" value="${dep}" ${locked ? "disabled" : ""}>
@@ -315,11 +323,6 @@ document.getElementById("tagSearchInput").addEventListener("input", (e) => {
 });
 
 // ===== GL REASSIGN — Right-click context menu =====
-
-const ALL_DEPARTMENTS = [
-  "piping", "instrumentation", "process", "smed",
-  "electrical", "general civil", "structural", "architecture", "PEM"
-];
 
 const contextMenu = document.getElementById("tagContextMenu");
 const reassignModal = document.getElementById("reassignModal");
@@ -496,7 +499,7 @@ function renderFinTagTable(tags) {
     <td><span class="fin-status fin-status--${isLocked ? "locked" : "open"}">${isLocked ? "LOCKED" : "OPEN"}</span></td>
     <td>
       <div class="dept-checkbox-group ${isLocked ? "disabled" : ""}">
-        ${["piping", "instrumentation", "process", "smed", "electrical", "general civil", "structural", "architecture", "PEM"]
+        ${ALL_DEPARTMENTS
           .map(dep => `
             <label>
               <input type="checkbox" value="${dep}" ${isLocked ? "disabled" : ""}>
