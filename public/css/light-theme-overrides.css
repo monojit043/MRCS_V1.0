@@ -1,0 +1,140 @@
+/* ============================================================
+   MRCS — shared light-theme overrides
+   Linked after internal.css (which redefines the --col- tokens
+   and the topbar/sidebar chrome) on every "External" page:
+   admin.html, jobengineer.html, leadengineer.html,
+   model-review-initiation.html, uploadandfinalization.html.
+
+   internal.css already retargets most shared conventions
+   (.form-group, .td-item, #reviewPicker, .tag-detail-descriptions,
+   .je-summary-item, .tag-arrow, .img-frame, .tagpoints-row — see
+   its "JE / LE pages" section) plus the generic input/select/
+   textarea element selector. What's left here are page-specific
+   hardcoded rgba(...) navy literals whose selectors carry higher
+   specificity than that generic element rule, so they don't pick
+   up the retargeted tokens on their own. A selector below that
+   doesn't exist on a given page is simply unused there.
+   ============================================================ */
+
+/* ── admin2.css (Administration — Add User / manage modals) ── */
+.form-row input,
+.form-row select,
+.employee-search,
+.add-user-field input[type="text"],
+.add-user-field select,
+.modal-group select,
+.modal-box select {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+.add-user-field input[readonly] {
+    background: var(--col-surface-alt);
+    color: var(--col-muted);
+}
+
+/* ── initiation.css (Dashboard / Meetings — stat cards, search, date picker) ── */
+.stat-card,
+.np-review-card,
+.np-stage-card {
+    background: var(--col-surface);
+    border-color: var(--col-border);
+}
+.init-field input,
+.init-field select,
+.init-field textarea {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+.init-field input[readonly] {
+    background: var(--col-surface-alt);
+    color: var(--col-muted);
+}
+.date-input-wrap input[type="date"],
+.cal-btn,
+.init-search-input,
+.col-filter-search {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+
+/* ── jobengineer2.css (Job Engineer — doc-library / description modals) ── */
+.dm-group input[type="date"],
+.dm-description textarea,
+.dl-row input[type="date"] {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+
+/* ── leadengineer2.css (Lead Engineer — details / prerequisites) ── */
+.details-group input[type="date"],
+.details-description textarea {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+.details-display,
+#prereqContainer .prereq-item,
+#prereqContainer > div,
+.summary-box {
+    background: var(--col-surface-alt);
+    border-color: var(--col-border);
+    color: var(--col-text);
+}
+
+/* ── uploadandfinalization5.css (Upload & Finalize — tag search / stats) ── */
+.tag-search-input,
+.tag-table tbody td select {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+.fin-stat {
+    background: var(--col-surface-alt);
+    border-color: var(--col-border);
+    color: var(--col-text);
+}
+
+/* ── combo-picker.css (shared across Admin / JE / LE / Upload) ── */
+.combo-wrap .combo-input {
+    background: var(--col-surface);
+    color: var(--col-text);
+    border-color: var(--col-border);
+}
+
+/* ── doclib-modal.css (Review Info / Document Library modal — self-contained
+   dark card, doesn't use --col- tokens at all) ── */
+.ri-card {
+    background: #ffffff;
+    border: 1px solid var(--col-border);
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.25);
+    color: var(--col-text);
+}
+.ri-title { color: var(--col-accent); }
+.ri-close { color: var(--col-muted); }
+.ri-close:hover { background: var(--col-surface-alt); }
+.ri-section-heading { color: var(--col-muted); }
+.ri-field label { color: var(--col-muted); }
+.ri-field input,
+.ri-field textarea {
+    background: var(--col-surface-alt);
+    border: 1px solid var(--col-border);
+    color: var(--col-text);
+}
+.ri-dl-wrap { border: 1px solid var(--col-border); }
+.ri-dl-header {
+    background: var(--col-surface-alt);
+    border-bottom: 1px solid var(--col-border);
+    color: var(--col-muted);
+}
+#ri-dl-body .ri-dl-row {
+    color: var(--col-text);
+    border-bottom: 1px solid var(--col-border);
+}
+#ri-dl-body .ri-dl-row:nth-child(even) { background: var(--col-surface-alt); }
+.ri-nwd-link { color: var(--col-accent); }
+.ri-nwd-link:hover { color: var(--col-accent-hov); }
+.ri-empty { color: var(--col-muted); }

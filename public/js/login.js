@@ -30,8 +30,8 @@ document.getElementById("loginForm").addEventListener("submit", async function (
         localStorage.setItem("role", data.role);
         localStorage.setItem("fullName", data.fullName);
         localStorage.setItem("department", data.department?.toLowerCase());
-        
-        // Redirect based on department first, then role
+
+        // Land on the page for the user's role.
         const dept = (data.department || "").toLowerCase();
         if (dept === "pem") {
             window.location.href = "model-review-initiation.html";
@@ -41,6 +41,8 @@ document.getElementById("loginForm").addEventListener("submit", async function (
             window.location.href = "leadengineer.html";
         } else if (data.role === "GL") {
             window.location.href = "admin.html";
+        } else {
+            window.location.href = "model-review-initiation.html";
         }
 
     } catch (err) {

@@ -581,6 +581,32 @@ body {
   padding: 18px 20px 7px;
 }
 
+/* ── Sidebar CTA button (e.g. "Schedule Meeting") ── */
+.sb-cta-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  margin: 2px 12px 14px;
+  padding: 10px 14px;
+  background: var(--col-accent, var(--nb-accent));
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-family: var(--nb-font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.sb-cta-btn:hover { background: var(--col-accent-hov, var(--nb-accent)); }
+.sb-cta-btn:active { transform: scale(0.98); }
+.sb-cta-btn svg { flex-shrink: 0; }
+
+body.sb-collapsed .sb-cta-btn span { display: none; }
+body.sb-collapsed .sb-cta-btn { width: 42px; height: 42px; padding: 0; margin-left: 9px; }
+
 /* ── Nav item ── */
 .sb-nav-item {
   display: flex;
@@ -618,6 +644,36 @@ body {
 }
 
 .sb-nav-item.sb-nav-item--active svg { opacity: 1; color: var(--nb-accent); }
+
+/* ── Nav group (main menu with sub-items, e.g. Quality Meeting) ── */
+.sb-nav-sub {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 6px;
+}
+
+.sb-nav-subitem {
+  display: block;
+  padding: 7px 20px 7px 49px;
+  text-decoration: none;
+  font-family: var(--nb-font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--nb-text-dim);
+  border-left: 3px solid transparent;
+  transition: color 0.18s, background 0.18s;
+}
+
+.sb-nav-subitem:hover {
+  color: var(--nb-text);
+  background: rgba(0, 168, 255, 0.05);
+}
+
+.sb-nav-subitem.sb-nav-item--active {
+  color: var(--nb-white);
+  background: var(--nb-active-bg);
+  border-left-color: var(--nb-active-line);
+}
 
 /* ── Mode section ── */
 .sb-mode-section {
@@ -1033,6 +1089,10 @@ body.sb-collapsed .sb-footer-text {
 }
 
 body.sb-collapsed .sb-nav-item span {
+  display: none;
+}
+
+body.sb-collapsed .sb-nav-sub {
   display: none;
 }
 

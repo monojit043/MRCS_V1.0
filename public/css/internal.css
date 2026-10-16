@@ -48,7 +48,12 @@ html, body {
   color: var(--col-text);
   background: var(--col-surface-alt);
 }
-.tb-tab--active {
+/* navbar.css's dark-theme rule is the compound selector
+   .tb-tab.tb-tab--active (higher specificity than a bare
+   .tb-tab--active), so this override has to match it — otherwise
+   navbar.css's `color: var(--nb-white)` wins and the active tab's
+   white-on-white text becomes invisible on the light topbar. */
+.tb-tab.tb-tab--active {
   color: var(--col-accent);
   border-bottom-color: var(--col-accent);
   background: transparent;
@@ -105,6 +110,18 @@ html, body {
   color: var(--col-accent);
 }
 .sb-nav-item--active svg { stroke: var(--col-accent); }
+
+.sb-nav-subitem {
+  color: var(--col-text);
+}
+.sb-nav-subitem:hover {
+  background: var(--col-surface-alt);
+  color: var(--col-accent);
+}
+.sb-nav-subitem.sb-nav-item--active {
+  background: #e8f0fc;
+  color: var(--col-accent);
+}
 
 .sb-mode-toggle {
   background: var(--col-surface-alt);
@@ -286,6 +303,63 @@ input::placeholder { color: var(--col-muted); }
   display: block;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* ── Change Password / Feedback modals (injected by navbar.js, shared
+   across every page — self-contained dark cards that don't read the
+   --col- tokens at all) ── */
+.cpwd-modal, .fb-modal {
+  background: #ffffff;
+  box-shadow: 0 24px 64px var(--col-shadow);
+}
+.cpwd-header, .fb-header { border-bottom-color: var(--col-border); }
+.cpwd-title, .fb-title { color: var(--col-text); }
+.cpwd-close, .fb-close { color: var(--col-muted); }
+.cpwd-close:hover { color: var(--col-danger); }
+.fb-close:hover { color: var(--col-danger); }
+.cpwd-field label { color: var(--col-muted); }
+.cpwd-field input {
+  background: var(--col-surface-alt);
+  border: 1px solid var(--col-border);
+  color: var(--col-text);
+}
+.fb-header-left { color: var(--col-accent2); }
+.fb-tabs { border-bottom-color: var(--col-border); }
+.fb-tab { color: var(--col-muted); }
+.fb-tab:hover { color: var(--col-text); }
+.fb-tab.fb-tab--active {
+  color: var(--col-accent2);
+  border-bottom-color: var(--col-accent2);
+}
+.fb-field select,
+.fb-field textarea {
+  background: var(--col-surface-alt);
+  border: 1px solid var(--col-border);
+  color: var(--col-text);
+}
+.fb-my-card {
+  background: var(--col-surface-alt);
+  border: 1px solid var(--col-border);
+}
+.fb-my-msg { color: var(--col-text); }
+.fb-my-date, .fb-my-loading, .fb-my-empty { color: var(--col-muted); }
+.cpwd-btn-cancel, .fb-btn-cancel {
+  border: 1px solid var(--col-border);
+  color: var(--col-muted);
+}
+.cpwd-btn-cancel:hover, .fb-btn-cancel:hover {
+  color: var(--col-text);
+  border-color: var(--col-muted);
+}
+.cpwd-btn-submit, .fb-btn-submit {
+  background: var(--col-accent);
+  border: 1px solid var(--col-accent);
+  color: #ffffff;
+}
+.cpwd-btn-submit:hover:not(:disabled), .fb-btn-submit:hover:not(:disabled) {
+  background: var(--col-accent-hov);
+  border-color: var(--col-accent-hov);
+  color: #ffffff;
 }
 
 /* ── JE / LE pages: override hardcoded rgba dark backgrounds from jobengineer2.css / leadengineer2.css ── */
