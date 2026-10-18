@@ -101,10 +101,42 @@
     .adm-control-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
     .btn-success { background: var(--col-success) !important; }
     .btn-success:hover { background: #15803d !important; }
+
+    /* ── Team tab (same look as the internal review page) ── */
+    .int-review-list { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .int-review-list th {
+      background: var(--col-surface-alt); color: var(--col-muted); font-weight: 600; font-size: 11px;
+      letter-spacing: .06em; text-transform: uppercase; padding: 10px 14px;
+      border-bottom: 1px solid var(--col-border); text-align: left;
+    }
+    .int-review-list td { padding: 10px 14px; border-bottom: 1px solid var(--col-border); color: var(--col-text); }
+    .int-review-list tr:last-child td { border-bottom: none; }
+    .int-review-list tr:hover td { background: #f0f5ff; }
+    .int-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .int-badge-blue { background: #dbeafe; color: #1d4ed8; }
+    .int-badge-grey { background: #f1f5f9; color: #64748b; }
+    .int-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; }
+    .int-form-field label {
+      display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--col-muted); margin-bottom: 6px;
+    }
+    .int-form-field select {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--col-border); border-radius: 4px;
+      font-size: 13px; background: var(--col-surface); color: var(--col-text); box-sizing: border-box;
+    }
+    .int-form-field.span-2 { grid-column: span 2; }
+    .int-form-actions { margin-top: 20px; display: flex; gap: 10px; }
+    .int-msg { margin-top: 10px; font-size: 13px; min-height: 20px; }
+    .int-msg.ok  { color: var(--col-success); }
+    .int-msg.err { color: var(--col-danger); }
+    @media (max-width: 640px) { .int-form-grid { grid-template-columns: 1fr; } .int-form-field.span-2 { grid-column: auto; } }
   </style>
 </head>
 <body>
   <div class="page-wrapper">
+
+  <!-- ===== TAB: Tag Status & CRS (#tags, default) ===== -->
+  <div id="panelTags">
 
     <!-- Control bar -->
     <div class="form-card adm-control">
@@ -234,6 +266,62 @@
         </div>
       </div>
     </div>
+  </div><!-- /panelTags -->
+
+  <!-- ===== TAB: Team (#team) — GL assigns LE / JE, LE assigns JE (own department) ===== -->
+  <div id="panelTeam" style="display:none;">
+    <div class="form-card" style="padding:24px;">
+      <div style="font-size:16px;font-weight:700;color:var(--col-text);margin-bottom:4px;">Team</div>
+      <div style="font-size:12px;color:var(--col-muted);margin:4px 0 14px;line-height:1.5;">
+        GL comes from PIMS (GL / SGL) or employee level &ge; 17 — it can't be assigned here.
+        As <b>GL</b> you can add <b>LE</b> or <b>JE</b>; as <b>LE</b> you can add <b>JE</b>. Only people from your own department.
+      </div>
+
+      <div class="int-form-grid">
+        <div class="int-form-field span-2">
+          <label>Internal Review</label>
+          <select id="teamReviewPicker"><option value="">— Loading your internal reviews… —</option></select>
+        </div>
+      </div>
+
+      <div id="teamBody" style="display:none;">
+        <div style="overflow-x:auto;margin-top:14px;">
+          <table class="int-review-list">
+            <thead><tr><th>Employee</th><th>Name</th><th>Role</th><th>From</th><th></th></tr></thead>
+            <tbody id="teamTableBody"></tbody>
+          </table>
+        </div>
+        <div id="teamLevelNote" style="font-size:12px;color:var(--col-muted);margin-top:8px;"></div>
+
+        <!-- Copy the LE / JE team of an earlier stage (shown only when one exists) -->
+        <div id="teamCopyBox" style="display:none;margin-top:16px;padding:12px 14px;border:1px dashed var(--col-border);border-radius:6px;background:var(--col-surface-alt);">
+          <div style="font-size:12px;font-weight:600;color:var(--col-text);margin-bottom:8px;">Copy team from an earlier stage</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="teamCopyFrom" style="padding:7px 10px;border:1px solid var(--col-border);border-radius:4px;font-size:13px;background:var(--col-surface);color:var(--col-text);min-width:240px;"></select>
+            <button class="mrcs-btn" id="teamCopyBtn">&#10227; Copy Team</button>
+          </div>
+          <div style="font-size:11.5px;color:var(--col-muted);margin-top:6px;">
+            Copies LE / JE only (GLs already apply to every stage). People already on this stage are skipped. Each stage keeps its own team.
+          </div>
+        </div>
+
+        <div class="int-form-grid" style="margin-top:16px;">
+          <div class="int-form-field">
+            <label>Add Employee</label>
+            <select id="teamEmployee"><option value="">— Select employee —</option></select>
+          </div>
+          <div class="int-form-field">
+            <label>Role</label>
+            <select id="teamRole"></select>
+          </div>
+        </div>
+        <div class="int-form-actions">
+          <button class="mrcs-btn" id="teamAddBtn">&#10010; Add to Team</button>
+        </div>
+      </div>
+      <div class="int-msg" id="teamMsg"></div>
+    </div>
+  </div><!-- /panelTeam -->
 
     <footer class="footer" style="padding:12px 28px;font-size:12px;display:flex;justify-content:space-between;">
       <div><a href="#">EIL</a> &nbsp;•&nbsp; <a href="#">MRCS</a></div>
@@ -246,14 +334,22 @@
   <script src="js/header.js"></script>
 
   <script>
-  /* ── Piping LE / GL guard ── */
+  /* ── Department GL / LE guard ── */
   (function () {
     var role = localStorage.getItem('role') || '';
-    var adminDept = (localStorage.getItem('department') || '').toLowerCase();
-    if (adminDept !== 'piping' || !['LE','GL'].includes(role)) {
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#64748b;">Access restricted — Piping LE / GL only.</div>';
+    if (!['LE','GL'].includes(role)) {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#64748b;">Access restricted — GL / LE only.</div>';
     }
   })();
+
+  /* ── Tabs: #tags (Tag Status & CRS, default) | #team ── */
+  function showAdminPanel() {
+    var team = window.location.hash === '#team';
+    document.getElementById('panelTags').style.display = team ? 'none' : '';
+    document.getElementById('panelTeam').style.display = team ? '' : 'none';
+  }
+  showAdminPanel();
+  window.addEventListener('hashchange', showAdminPanel);
 
   var adminJobNo = '', adminUnitNo = '', adminStage = '';
   var allTagRows = [];
@@ -445,6 +541,162 @@
     });
     renderTagTable(filtered);
   });
+  </script>
+
+  <script>
+  /* ══════════════════════════════════════════════
+     TEAM tab — LE / JE of an internal review (own department)
+     Server enforces: GL → LE / JE, LE → JE, only remove people below you.
+  ══════════════════════════════════════════════ */
+  (function () {
+    var teamReview = null;   // { jobNo, unitNo, stage }
+    var teamEmployeesLoaded = false;
+
+    function teamMsg(text, isErr) {
+      var el = document.getElementById('teamMsg');
+      el.textContent = text;
+      el.className = 'int-msg ' + (isErr ? 'err' : 'ok');
+    }
+
+    async function loadTeamReviews() {
+      var sel = document.getElementById('teamReviewPicker');
+      try {
+        var data = await apiFetch('/api/internal/initiated');
+        var rows = data.reviews || [];
+        sel.innerHTML = rows.length
+          ? '<option value="">— Select an internal review —</option>' + rows.map(function (r) {
+              return '<option value="' + esc(r.job_no) + '|' + esc(r.unit_no) + '|' + esc(r.stage) + '">'
+                + esc(r.job_no) + ' / ' + esc(r.unit_no) + ' / ' + esc(r.stage) + '</option>';
+            }).join('')
+          : '<option value="">— No internal reviews yet — create one in Initiate Review —</option>';
+      } catch (e) {
+        sel.innerHTML = '<option value="">— Failed to load reviews —</option>';
+      }
+    }
+
+    async function loadTeamEmployees() {
+      if (teamEmployeesLoaded) return;
+      try {
+        var emps = await apiFetch('/api/admin/employees');   // own department only
+        document.getElementById('teamEmployee').innerHTML = '<option value="">— Select employee —</option>'
+          + (emps || []).map(function (e) {
+              return '<option value="' + esc(e.employee_id) + '">' + esc(e.name) + ' (' + esc(e.employee_id) + ')</option>';
+            }).join('');
+        teamEmployeesLoaded = true;
+      } catch (e) { /* shown on add */ }
+    }
+
+    async function loadTeam() {
+      var tbody = document.getElementById('teamTableBody');
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--col-muted);padding:12px;">Loading…</td></tr>';
+      try {
+        var q = 'jobNo=' + encodeURIComponent(teamReview.jobNo) + '&unitNo=' + encodeURIComponent(teamReview.unitNo)
+              + '&stage=' + encodeURIComponent(teamReview.stage);
+        var data = await apiFetch('/api/internal/assigned-users?' + q);
+        var users = data.users || [];
+        tbody.innerHTML = users.length ? users.map(function (u) {
+          var removeBtn = u.canRemove
+            ? '<button class="mrcs-btn" style="padding:4px 10px;font-size:12px;" data-remove="' + esc(u.employee_id) + '">Remove</button>'
+            : '';
+          var from = u.source === 'pims' ? 'PIMS' : (u.assigned_by ? 'Assigned by ' + esc(u.assigned_by) : 'Assigned');
+          return '<tr><td>' + esc(u.employee_id) + '</td><td>' + esc(u.full_name) + '</td>'
+            + '<td><span class="int-badge ' + (u.role === 'GL' ? 'int-badge-blue' : 'int-badge-grey') + '">' + esc(u.role) + '</span></td>'
+            + '<td style="font-size:12px;color:var(--col-muted);">' + from + '</td><td>' + removeBtn + '</td></tr>';
+        }).join('')
+        : '<tr><td colspan="5" style="color:var(--col-muted);padding:12px;">No one assigned yet.</td></tr>';
+        document.getElementById('teamLevelNote').textContent = data.levelGlCount
+          ? '+ ' + data.levelGlCount + ' GL(s) by employee level ≥ 17 (they are GL on every PIMS job).' : '';
+        document.getElementById('teamRole').innerHTML = data.myRole === 'GL'
+          ? '<option value="JE">Job Engineer (JE)</option><option value="LE">Lead Engineer (LE)</option>'
+          : '<option value="JE">Job Engineer (JE)</option>';
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:var(--col-danger);padding:12px;">' + esc(e.message || 'Failed to load team') + '</td></tr>';
+      }
+      loadCopySources();
+    }
+
+    // Earlier stages of this job / unit that have a team — offered as copy sources
+    async function loadCopySources() {
+      var box = document.getElementById('teamCopyBox');
+      box.style.display = 'none';
+      try {
+        var q = 'jobNo=' + encodeURIComponent(teamReview.jobNo) + '&unitNo=' + encodeURIComponent(teamReview.unitNo)
+              + '&stage=' + encodeURIComponent(teamReview.stage);
+        var data = await apiFetch('/api/internal/team/copy-sources?' + q);
+        var sources = data.sources || [];
+        if (!sources.length) return;
+        document.getElementById('teamCopyFrom').innerHTML = sources.map(function (s) {
+          return '<option value="' + esc(s.stage) + '">' + esc(s.stage) + ' team — ' + s.le + ' LE, ' + s.je + ' JE</option>';
+        }).join('');
+        box.style.display = '';
+      } catch (e) { /* no copy option */ }
+    }
+
+    document.getElementById('teamCopyBtn').addEventListener('click', async function () {
+      var fromStage = document.getElementById('teamCopyFrom').value;
+      if (!teamReview || !fromStage) return;
+      if (!confirm('Copy the ' + fromStage + ' team into ' + teamReview.jobNo + ' / ' + teamReview.unitNo + ' / ' + teamReview.stage + '?')) return;
+      try {
+        var r = await apiFetch('/api/internal/team/copy-forward', {
+          method: 'POST',
+          body: JSON.stringify({ jobNo: teamReview.jobNo, unitNo: teamReview.unitNo, stage: teamReview.stage, fromStage: fromStage })
+        });
+        var msg = r.message || 'Team copied.';
+        if (r.skipped && r.skipped.length) {
+          msg += ' — skipped: ' + r.skipped.map(function (s) { return s.employeeId + ' (' + s.reason + ')'; }).join('; ');
+        }
+        teamMsg(msg, false);
+        loadTeam();
+      } catch (e) {
+        teamMsg(e.message || 'Failed to copy team.', true);
+      }
+    });
+
+    document.getElementById('teamReviewPicker').addEventListener('change', function () {
+      teamMsg('', false);
+      if (!this.value) { teamReview = null; document.getElementById('teamBody').style.display = 'none'; return; }
+      var p = this.value.split('|');
+      teamReview = { jobNo: p[0], unitNo: p[1], stage: p[2] };
+      document.getElementById('teamBody').style.display = '';
+      loadTeamEmployees();
+      loadTeam();
+    });
+
+    document.getElementById('teamAddBtn').addEventListener('click', async function () {
+      var employeeId = document.getElementById('teamEmployee').value;
+      var role = document.getElementById('teamRole').value;
+      if (!teamReview || !employeeId || !role) { teamMsg('Select an employee and a role.', true); return; }
+      try {
+        var r = await apiFetch('/api/internal/assign', {
+          method: 'POST',
+          body: JSON.stringify({ employeeId: employeeId, role: role, jobNo: teamReview.jobNo, unitNo: teamReview.unitNo, stage: teamReview.stage })
+        });
+        teamMsg((r && r.message) || 'Added.', false);
+        document.getElementById('teamEmployee').value = '';
+        loadTeam();
+      } catch (e) {
+        teamMsg(e.message || 'Failed to add.', true);
+      }
+    });
+
+    document.getElementById('teamTableBody').addEventListener('click', async function (ev) {
+      var btn = ev.target.closest('[data-remove]');
+      if (!btn || !teamReview) return;
+      if (!confirm('Remove ' + btn.dataset.remove + ' from this review?')) return;
+      try {
+        var r = await apiFetch('/api/internal/assign', {
+          method: 'DELETE',
+          body: JSON.stringify({ employeeId: btn.dataset.remove, jobNo: teamReview.jobNo, unitNo: teamReview.unitNo, stage: teamReview.stage })
+        });
+        teamMsg((r && r.message) || 'Removed.', false);
+        loadTeam();
+      } catch (e) {
+        teamMsg(e.message || 'Failed to remove.', true);
+      }
+    });
+
+    loadTeamReviews();
+  })();
   </script>
 </body>
 </html>

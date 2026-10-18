@@ -14,7 +14,7 @@ const NONPEM_PANELS = ["panelNonPEMDash"];
 const HASH_TO_PANEL = {
   '#dashboard': 'panelDashboard',
   '#initiate':  'panelInitiate',
-  '#assign':    'panelAssign',
+  '#assign':    'panelDashboard',   // "Assign Leads" retired — PEM no longer assigns department GL / LE
 };
 
 function getPanelFromHash() {
@@ -319,7 +319,8 @@ function renderTable(rows) {
     <tr>
       <td>${i + 1}</td>
       <td>${r.job_no}</td>
-      <td>${r.unit_no}</td>
+      <td>${r.unit_no}<div class="unit-group-info" data-job="${escapeHtml(r.job_no)}" data-unit="${escapeHtml(r.unit_no)}"
+            style="font-size:11px;opacity:.75;line-height:1.35;"></div></td>
       <td><span class="stage-badge">${r.stage}</span></td>
       <td>${r.review_date_from ? r.review_date_from.split("T")[0] : "—"}</td>
       <td>${r.review_date_to ? r.review_date_to.split("T")[0] : "—"}</td>
@@ -327,6 +328,28 @@ function renderTable(rows) {
       <td>${r.created_by || "—"}</td>
       <td>${r.created_at ? r.created_at.split("T")[0] : "—"}</td>
     </tr>`).join("");
+  annotateUnitGroups();
+}
+
+// Under each review's unit: the child units its master covers (live from PIMS),
+// or a warning if PIMS no longer treats that unit as a master.
+const unitGroupCache = {};
+async function annotateUnitGroups() {
+  for (const el of document.querySelectorAll(".unit-group-info")) {
+    const key = `${el.dataset.job}|${el.dataset.unit}`;
+    try {
+      unitGroupCache[key] ||= await apiFetch(
+        `/api/pims/unit-group?jobNo=${encodeURIComponent(el.dataset.job)}&unitNo=${encodeURIComponent(el.dataset.unit)}`);
+      const g = unitGroupCache[key];
+      if (!g.found) {
+        el.innerHTML = `<span style="color:#b45309;">⚠ not an active unit in PIMS</span>`;
+      } else if (!g.isMaster) {
+        el.innerHTML = `<span style="color:#b45309;">⚠ no longer a master unit in PIMS (now under ${escapeHtml(g.masterUnit)})</span>`;
+      } else if (g.children.length) {
+        el.textContent = `+ ${g.children.map(c => c.unit_no).join(", ")}`;
+      }
+    } catch { /* PIMS unreachable — leave blank */ }
+  }
 }
 
 // ===== POPULATE ASSIGN PICKER (module-level so submitInitBtn can call it) =====
@@ -443,6 +466,76 @@ document.getElementById("assignReviewDropdown")?.addEventListener("mousedown", f
   selectAssignReview(item.dataset.value, item.textContent.trim());
 });
 
+// ===== JOB / MASTER UNIT / STAGE PICKERS — live from PIMS on PC-2 =====
+// Only PIMS jobs; reviews are created on MASTER units only (a master covers its
+// child units). The server re-checks all three on submit.
+let initMasterUnits = [];
+
+async function loadInitJobs() {
+  const jobSel = document.getElementById("initJobNo");
+  if (!jobSel) return;
+  try {
+    const { jobs } = await apiFetch("/api/pims/jobs");
+    jobSel.innerHTML = `<option value="">— Select Job —</option>` +
+      jobs.map(j => `<option value="${escapeHtml(j.job_no)}">${escapeHtml(j.job_no)} — ${escapeHtml(j.job_name)}</option>`).join("");
+  } catch (err) {
+    jobSel.innerHTML = `<option value="">— Could not load jobs from PIMS —</option>`;
+  }
+}
+
+async function loadInitMasterUnits(jobNo) {
+  const unitSel = document.getElementById("initUnitNo");
+  document.getElementById("initUnitGroup").textContent = "";
+  initMasterUnits = [];
+  if (!jobNo) {
+    unitSel.innerHTML = `<option value="">— Select Job first —</option>`;
+    unitSel.disabled = true;
+    return;
+  }
+  unitSel.innerHTML = `<option value="">— Loading units… —</option>`;
+  try {
+    const { units } = await apiFetch(`/api/pims/master-units?jobNo=${encodeURIComponent(jobNo)}`);
+    initMasterUnits = units;
+    unitSel.innerHTML = units.length
+      ? `<option value="">— Select Master Unit —</option>` + units.map(u => {
+          const name = u.unit_name ? ` — ${escapeHtml(u.unit_name)}` : "";
+          const group = u.children.length ? ` (+${u.children.length} unit${u.children.length > 1 ? "s" : ""})` : "";
+          return `<option value="${escapeHtml(u.unit_no)}">${escapeHtml(u.unit_no)}${name}${group}</option>`;
+        }).join("")
+      : `<option value="">— No active units in PIMS for this job —</option>`;
+    unitSel.disabled = !units.length;
+  } catch (err) {
+    unitSel.innerHTML = `<option value="">— Could not load units from PIMS —</option>`;
+  }
+}
+
+function showInitUnitGroup(unitNo) {
+  const el = document.getElementById("initUnitGroup");
+  const m = initMasterUnits.find(u => u.unit_no === unitNo);
+  el.textContent = !m ? ""
+    : m.children.length ? `Covers ${m.unit_no} + ${m.children.map(c => c.unit_no).join(", ")}`
+    : "Standalone unit";
+}
+
+async function loadInitStages() {
+  const stageSel = document.getElementById("initStage");
+  if (!stageSel) return;
+  try {
+    const { stages } = await apiFetch("/api/pims/stages");
+    if (stages.length) {
+      stageSel.innerHTML = `<option value="">— Select Stage —</option>` +
+        stages.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join("");
+    }
+  } catch { /* keep the built-in 30% / 60% / 90% options */ }
+}
+
+if (isPEM) {
+  document.getElementById("initJobNo")?.addEventListener("change", e => loadInitMasterUnits(e.target.value));
+  document.getElementById("initUnitNo")?.addEventListener("change", e => showInitUnitGroup(e.target.value));
+  loadInitJobs();
+  loadInitStages();
+}
+
 // ===== SUBMIT NEW REVIEW (PEM only) =====
 document.getElementById("submitInitBtn")?.addEventListener("click", async () => {
   const jobNo = document.getElementById("initJobNo").value.trim().toUpperCase();
@@ -453,7 +546,7 @@ document.getElementById("submitInitBtn")?.addEventListener("click", async () => 
   const description = document.getElementById("initDescription").value.trim();
 
   if (!jobNo || !unitNo || !stage) {
-    alert("Please fill in Job No, Unit No and Stage.");
+    alert("Please select Job No, Master Unit and Stage.");
     return;
   }
 
@@ -470,7 +563,7 @@ document.getElementById("submitInitBtn")?.addEventListener("click", async () => 
 
     alert("Model review initiated successfully.");
     document.getElementById("initJobNo").value = "";
-    document.getElementById("initUnitNo").value = "";
+    loadInitMasterUnits("");
     document.getElementById("initStage").value = "";
     document.getElementById("initReviewDateFrom").value = "";
     document.getElementById("initReviewDateTo").value = "";

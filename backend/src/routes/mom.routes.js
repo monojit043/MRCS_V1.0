@@ -2,9 +2,11 @@ const express = require("express");
 const router  = express.Router();
 const pool    = require("../data/db");
 const { authenticateToken, authorize } = require("../middleware/auth.middleware");
+// Role is checked on THIS review (job/unit/stage), not globally
+const { requireReviewRole } = require("../services/reviewAccess");
 
 // GET — load points for a review
-router.get("/", authenticateToken, authorize("LE"), async (req, res) => {
+router.get("/", authenticateToken, requireReviewRole("LE"), async (req, res) => {
     const { jobNo, unitNo, stage } = req.query;
     if (!jobNo || !unitNo || !stage) {
         return res.status(400).json({ message: "jobNo, unitNo and stage are required" });
@@ -25,7 +27,7 @@ router.get("/", authenticateToken, authorize("LE"), async (req, res) => {
 });
 
 // POST — save points for a review (replace all)
-router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
+router.post("/save", authenticateToken, requireReviewRole("LE"), async (req, res) => {
     const { jobNo, unitNo, stage, points } = req.body;
     if (!jobNo || !unitNo || !stage) {
         return res.status(400).json({ message: "jobNo, unitNo and stage are required" });

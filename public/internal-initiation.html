@@ -104,38 +104,39 @@
 
                     <div class="int-form-grid">
                         <div class="int-form-field span-2">
-                            <label>Select External Review (choose from your assigned reviews)</label>
+                            <label>Copy from an external review <span style="font-weight:400;opacity:.7;">(optional — or choose Job / Unit / Stage below)</span></label>
                             <select id="initExternalReviewPicker">
-                                <option value="">— Loading your assigned external reviews… —</option>
+                                <option value="">— Loading external reviews… —</option>
                             </select>
                         </div>
-                        <div class="int-form-field" id="initJobNoWrap" style="display:none;">
-                            <label>Job No</label>
-                            <input type="text" id="initJobNo" readonly style="background:var(--col-surface-alt);cursor:default;" />
+                        <div class="int-form-field">
+                            <label>Job No * <span style="font-weight:400;opacity:.7;">(PIMS jobs where you are GL / LE)</span></label>
+                            <select id="initJobNo"><option value="">— Loading jobs… —</option></select>
                         </div>
-                        <div class="int-form-field" id="initUnitNoWrap" style="display:none;">
-                            <label>Unit No</label>
-                            <input type="text" id="initUnitNo" readonly style="background:var(--col-surface-alt);cursor:default;" />
+                        <div class="int-form-field">
+                            <label>Master Unit *</label>
+                            <select id="initUnitNo" disabled><option value="">— Select Job first —</option></select>
+                            <div id="initUnitGroup" style="font-size:11.5px;opacity:.75;margin-top:4px;"></div>
                         </div>
-                        <div class="int-form-field" id="initStageWrap" style="display:none;">
-                            <label>Stage</label>
-                            <input type="text" id="initStage" readonly style="background:var(--col-surface-alt);cursor:default;" />
+                        <div class="int-form-field">
+                            <label>Stage *</label>
+                            <select id="initStage"><option value="">— Select Stage —</option></select>
                         </div>
-                        <div class="int-form-field" id="initFromDateWrap" style="display:none;">
+                        <div class="int-form-field">
                             <label>From Date</label>
                             <input type="date" id="initFromDate" />
                         </div>
-                        <div class="int-form-field" id="initToDateWrap" style="display:none;">
+                        <div class="int-form-field">
                             <label>To Date</label>
                             <input type="date" id="initToDate" />
                         </div>
-                        <div class="int-form-field span-2" id="initDescWrap" style="display:none;">
+                        <div class="int-form-field span-2">
                             <label>Description (optional)</label>
                             <textarea id="initDesc" placeholder="Brief description of this internal review…"></textarea>
                         </div>
                     </div>
 
-                    <div class="int-form-actions" id="initFormActions" style="display:none;">
+                    <div class="int-form-actions" id="initFormActions">
                         <button class="mrcs-btn" id="initiateBtn">&#10010; Create Internal Review</button>
                     </div>
                     <div class="int-msg" id="initiateMsg"></div>
@@ -167,6 +168,12 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Team moved to Administration → Team (internal-admin.html#team) -->
+                <div class="form-card" style="padding:16px 24px; margin-top:20px; font-size:13px;">
+                    Assign your department's <b>LE / JE</b> to an internal review in
+                    <a href="internal-admin.html#team" style="font-weight:600;">Administration &rarr; Team</a>.
+                </div>
             </div>
 
 
@@ -183,12 +190,11 @@
     <script src="js/header.js"></script>
 
     <script>
-    /* ── Piping LE/GL guard ── */
+    /* ── Department GL/LE guard ── */
     (function () {
         var role = localStorage.getItem('role') || '';
-        var dept = (localStorage.getItem('department') || '').toLowerCase();
-        if (dept !== 'piping' || !['LE','GL'].includes(role)) {
-            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#64748b;">Access restricted — Piping LE / GL only.</div>';
+        if (!['LE','GL'].includes(role)) {
+            document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#64748b;">Access restricted — GL / LE only.</div>';
         }
     })();
 
@@ -216,15 +222,72 @@
     /* ══════════════════════════════════════════════
        PANEL: INITIATE
     ══════════════════════════════════════════════ */
+    // Internal reviews no longer need a PEM external review: pick Job / Master Unit /
+    // Stage directly (PIMS, live — only where you are GL / LE for your department).
+    // Picking an external review is an optional shortcut that fills those in.
     var selectedExternalReviewId = null;
-    var INIT_TOGGLE_IDS = ['initJobNoWrap','initUnitNoWrap','initStageWrap','initFromDateWrap','initToDateWrap','initDescWrap','initFormActions'];
+    var initMasterUnits = [];
 
-    function showInitFields(show) {
-        INIT_TOGGLE_IDS.forEach(function (id) {
-            var el = document.getElementById(id);
-            if (el) el.style.display = show ? '' : 'none';
-        });
+    async function loadInitJobs() {
+        var sel = document.getElementById('initJobNo');
+        try {
+            var data = await apiFetch('/api/pims/jobs?lead=1');
+            var jobs = data.jobs || [];
+            sel.innerHTML = jobs.length
+                ? '<option value="">— Select Job —</option>' + jobs.map(function (j) {
+                    return '<option value="' + esc(j.job_no) + '">' + esc(j.job_no) + ' — ' + esc(j.job_name) + '</option>';
+                  }).join('')
+                : '<option value="">— You are not GL / LE on any PIMS job —</option>';
+        } catch (e) {
+            sel.innerHTML = '<option value="">— Could not load jobs from PIMS —</option>';
+        }
     }
+
+    async function loadInitUnits(jobNo, selectUnit) {
+        var sel = document.getElementById('initUnitNo');
+        document.getElementById('initUnitGroup').textContent = '';
+        initMasterUnits = [];
+        if (!jobNo) { sel.innerHTML = '<option value="">— Select Job first —</option>'; sel.disabled = true; return; }
+        sel.innerHTML = '<option value="">— Loading units… —</option>';
+        try {
+            var data = await apiFetch('/api/pims/master-units?lead=1&jobNo=' + encodeURIComponent(jobNo));
+            initMasterUnits = data.units || [];
+            sel.innerHTML = initMasterUnits.length
+                ? '<option value="">— Select Master Unit —</option>' + initMasterUnits.map(function (u) {
+                    var extra = u.children.length ? ' (+' + u.children.length + ' units)' : '';
+                    return '<option value="' + esc(u.unit_no) + '">' + esc(u.unit_no) + (u.unit_name ? ' — ' + esc(u.unit_name) : '') + extra + '</option>';
+                  }).join('')
+                : '<option value="">— No master units where you are GL / LE —</option>';
+            sel.disabled = !initMasterUnits.length;
+            if (selectUnit) { sel.value = selectUnit; showInitUnitGroup(selectUnit); }
+        } catch (e) {
+            sel.innerHTML = '<option value="">— Could not load units from PIMS —</option>';
+        }
+    }
+
+    function showInitUnitGroup(unitNo) {
+        var m = initMasterUnits.find(function (u) { return u.unit_no === unitNo; });
+        document.getElementById('initUnitGroup').textContent = !m ? ''
+            : m.children.length ? 'Covers ' + m.unit_no + ' + ' + m.children.map(function (c) { return c.unit_no; }).join(', ')
+            : 'Standalone unit';
+    }
+
+    async function loadInitStages() {
+        try {
+            var data = await apiFetch('/api/pims/stages');
+            document.getElementById('initStage').innerHTML = '<option value="">— Select Stage —</option>'
+                + (data.stages || []).map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + '</option>'; }).join('');
+        } catch (e) { /* leave empty — server validates */ }
+    }
+
+    // Choosing Job / Unit / Stage by hand means "create directly" — drop the external shortcut
+    function clearExternalShortcut() {
+        selectedExternalReviewId = null;
+        document.getElementById('initExternalReviewPicker').value = '';
+    }
+    document.getElementById('initJobNo').addEventListener('change', function () { clearExternalShortcut(); loadInitUnits(this.value); });
+    document.getElementById('initUnitNo').addEventListener('change', function () { clearExternalShortcut(); showInitUnitGroup(this.value); });
+    document.getElementById('initStage').addEventListener('change', clearExternalShortcut);
 
     async function loadExternalAssignedReviews() {
         var picker = document.getElementById('initExternalReviewPicker');
@@ -232,10 +295,10 @@
             var data = await apiFetch('/api/internal/external-assigned-reviews');
             var reviews = data.reviews || [];
             if (!reviews.length) {
-                picker.innerHTML = '<option value="">— No external reviews are assigned to you yet —</option>';
+                picker.innerHTML = '<option value="">— No external reviews to copy from —</option>';
                 return;
             }
-            picker.innerHTML = '<option value="">— Select an External Review —</option>'
+            picker.innerHTML = '<option value="">— None (choose Job / Unit / Stage below) —</option>'
                 + reviews.map(function (r) {
                     var label = esc(r.job_no) + ' / ' + esc(r.unit_no) + ' / ' + esc(r.stage);
                     if (r.has_internal) label += '  ✓ (internal review already created)';
@@ -251,21 +314,21 @@
         }
     }
 
-    document.getElementById('initExternalReviewPicker').addEventListener('change', function () {
+    document.getElementById('initExternalReviewPicker').addEventListener('change', async function () {
         var opt = this.options[this.selectedIndex];
-        var val = this.value;
-        if (!val) {
-            selectedExternalReviewId = null;
-            showInitFields(false);
-            setMsg('initiateMsg', '', false);
-            return;
-        }
-        selectedExternalReviewId = val;
-        document.getElementById('initJobNo').value  = opt.dataset.job   || '';
-        document.getElementById('initUnitNo').value = opt.dataset.unit  || '';
-        document.getElementById('initStage').value  = opt.dataset.stage || '';
-        showInitFields(true);
         setMsg('initiateMsg', '', false);
+        if (!this.value) { selectedExternalReviewId = null; return; }
+        var id = this.value;
+        // Fill Job / Unit / Stage from the external review (the job may not be in your lead list)
+        var jobSel = document.getElementById('initJobNo');
+        if (![].some.call(jobSel.options, function (o) { return o.value === opt.dataset.job; })) {
+            jobSel.insertAdjacentHTML('beforeend', '<option value="' + esc(opt.dataset.job) + '">' + esc(opt.dataset.job) + '</option>');
+        }
+        jobSel.value = opt.dataset.job || '';
+        await loadInitUnits(opt.dataset.job, opt.dataset.unit);
+        document.getElementById('initStage').value = opt.dataset.stage || '';
+        selectedExternalReviewId = id;   // set last — the fills above would clear it
+        this.value = id;
     });
 
     async function loadInitiated() {
@@ -297,24 +360,32 @@
     }
 
     document.getElementById('initiateBtn').addEventListener('click', async function () {
-        if (!selectedExternalReviewId) {
-            setMsg('initiateMsg', 'Please select an external review first.', true);
-            return;
-        }
+        var jobNo    = document.getElementById('initJobNo').value;
+        var unitNo   = document.getElementById('initUnitNo').value;
+        var stage    = document.getElementById('initStage').value;
         var fromDate = document.getElementById('initFromDate').value;
         var toDate   = document.getElementById('initToDate').value;
         var desc     = document.getElementById('initDesc').value.trim();
         setMsg('initiateMsg', '', false);
 
+        if (!selectedExternalReviewId && (!jobNo || !unitNo || !stage)) {
+            setMsg('initiateMsg', 'Please select Job, Master Unit and Stage.', true);
+            return;
+        }
+        var body = selectedExternalReviewId
+            ? { externalReviewId: selectedExternalReviewId }
+            : { jobNo: jobNo, unitNo: unitNo, stage: stage };
+        body.fromDate = fromDate || null;
+        body.toDate = toDate || null;
+        body.description = desc;
+
         try {
-            await apiFetch('/api/internal/initiate', {
-                method: 'POST',
-                body: JSON.stringify({ externalReviewId: selectedExternalReviewId, fromDate: fromDate || null, toDate: toDate || null, description: desc })
-            });
+            await apiFetch('/api/internal/initiate', { method: 'POST', body: JSON.stringify(body) });
             setMsg('initiateMsg', 'Internal review created successfully.', false);
-            document.getElementById('initExternalReviewPicker').value = '';
-            selectedExternalReviewId = null;
-            showInitFields(false);
+            clearExternalShortcut();
+            document.getElementById('initJobNo').value = '';
+            loadInitUnits('');
+            document.getElementById('initStage').value = '';
             document.getElementById('initFromDate').value = '';
             document.getElementById('initToDate').value   = '';
             document.getElementById('initDesc').value     = '';
@@ -329,6 +400,8 @@
     /* ── Boot ── */
     document.addEventListener('DOMContentLoaded', function () {
         showPanel();
+        loadInitJobs();
+        loadInitStages();
         loadExternalAssignedReviews();
         loadInitiated();
     });

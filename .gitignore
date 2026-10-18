@@ -13,3 +13,10 @@ desktop.ini
 # Logs
 *.log
 npm-debug.log*
+
+# Database backups (contain password hashes and project data)
+backend/db_backups/
+*.sql.bak
+
+# Generated admin SQL containing employee names / emails (run on PC-2, not for git)
+backend/sql/pc2_eil_employees_*.sql

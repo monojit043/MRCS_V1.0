@@ -99,7 +99,8 @@
       pemTabDefs = [
         { key: 'dashboard', hash: '#dashboard', icon: I.dashboard,  label: 'Review Dashboard' },
         { key: 'initiate',  hash: '#initiate',  icon: I.initiation, label: 'Initiate Reviews' },
-        { key: 'assign',    hash: '#assign',    icon: I.users,      label: 'Assign Leads'     },
+        // "Assign Leads" removed 2026-10-18 — PEM no longer assigns department GL / LE
+        // (GL comes from PIMS or employee level; each department's GL assigns LE / JE).
       ];
     }
 
@@ -136,7 +137,7 @@
     var adminTabDefs = [
       { key: 'mom',   hash: '#mom',   icon: I.initiation, label: 'MOM'                    },
       { key: 'tags',  hash: '#tags',  icon: I.le,         label: 'Tag Status & CRS Report' },
-      { key: 'users', hash: '#users', icon: I.users,      label: 'Add JE'                 },
+      { key: 'users', hash: '#users', icon: I.users,      label: 'Assign Team'            },
     ];
     tabsHtml = adminTabDefs.map(function (t) {
       var isActive = adminHash === t.hash || (adminHash === '' && t.hash === '#mom');

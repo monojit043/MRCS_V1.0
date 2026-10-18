@@ -2,6 +2,29 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../data/db"); // adjust if file name different
 const { authenticateToken, authorize } = require("../middleware/auth.middleware");
+// Role is checked on THIS review (job/unit/stage), in the user's own department
+const { requireReviewRole } = require("../services/reviewAccess");
+
+// Resolves (job_no, unit_no, stage) to the EXTERNAL model_review_initiations id.
+// These are the external "Model Review Preparation" routes. A department's internal
+// review can share the same job / unit / stage (since 2026-10-18 internal reviews
+// don't need an external one), so the lookup must name the type explicitly.
+const EXTERNAL_ONLY = "(UPPER(review_type) = 'EXTERNAL' OR review_type IS NULL)";
+
+async function resolveInitiationId(jobNo, unitNo, stage) {
+    const result = await pool.query(
+        `SELECT id FROM model_review_initiations
+         WHERE job_no = $1 AND unit_no = $2 AND stage = $3 AND ${EXTERNAL_ONLY}`,
+        [jobNo, unitNo, stage]
+    );
+    if (result.rows.length === 0) {
+        return { error: "No external review has been initiated for this job/unit/stage." };
+    }
+    if (result.rows.length > 1) {
+        return { error: "Multiple external reviews exist for this job/unit/stage — contact PEM." };
+    }
+    return { id: result.rows[0].id };
+}
 
 // ===============================
 // 1️⃣ Get Prerequisites By Stage
@@ -33,20 +56,43 @@ router.get("/prerequisites/:stage", authenticateToken, authorize("LE"), async (r
 // GET EXISTING REVIEW
 // ===============================
 
-router.get("/", authenticateToken, authorize("LE"), async (req, res) => {
+router.get("/", authenticateToken, requireReviewRole("LE", { sameDept: true }), async (req, res) => {
 
     const { jobNo, unitNo, stage } = req.query;
     const department = req.user.department;
 
     try {
 
-        // Review record for this department
-        const reviewResult = await pool.query(
-            `SELECT id, status, is_locked, submitted_at
-             FROM model_reviews
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3 AND department = $4`,
-            [jobNo, unitNo, stage, department]
+        // Initiation data — always returned (PEM is authority on dates/description).
+        // A job/unit/stage with two initiations (internal + external) is a soft
+        // miss here rather than a hard error: this is a read, so fall back to
+        // "no review" instead of guessing which initiation the caller means.
+        const initResult = await pool.query(
+            `SELECT id, description, review_date_from, review_date_to,
+                    COALESCE(qr_generated, false) AS qr_generated
+             FROM model_review_initiations
+             WHERE job_no = $1 AND unit_no = $2 AND stage = $3 AND ${EXTERNAL_ONLY}`,
+            [jobNo, unitNo, stage]
         );
+        const initiationRow = initResult.rows.length === 1 ? initResult.rows[0] : null;
+        const initiation = initiationRow
+            ? {
+                description: initiationRow.description,
+                review_date_from: initiationRow.review_date_from,
+                review_date_to: initiationRow.review_date_to,
+                qr_generated: initiationRow.qr_generated,
+              }
+            : null;
+
+        // Review record for this department
+        const reviewResult = initiationRow
+            ? await pool.query(
+                `SELECT id, status, is_locked, submitted_at
+                 FROM review_prerequisites_submissions
+                 WHERE initiation_id = $1 AND department = $2`,
+                [initiationRow.id, department]
+              )
+            : { rows: [] };
 
         // Prerequisite verifications (all departments)
         const prereqResult = await pool.query(
@@ -56,16 +102,6 @@ router.get("/", authenticateToken, authorize("LE"), async (req, res) => {
              ORDER BY department`,
             [jobNo, unitNo, stage]
         );
-
-        // Initiation data — always returned (PEM is authority on dates/description)
-        const initResult = await pool.query(
-            `SELECT description, review_date_from, review_date_to,
-                    COALESCE(qr_generated, false) AS qr_generated
-             FROM model_review_initiations
-             WHERE job_no = $1 AND unit_no = $2 AND stage = $3`,
-            [jobNo, unitNo, stage]
-        );
-        const initiation = initResult.rows[0] || null;
 
         if (reviewResult.rows.length === 0) {
             return res.json({
@@ -91,17 +127,23 @@ router.get("/", authenticateToken, authorize("LE"), async (req, res) => {
 // ===============================
 // SAVE REVIEW
 // ===============================
-router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
+router.post("/save", authenticateToken, requireReviewRole("LE", { sameDept: true }), async (req, res) => {
     try {
         const { jobNo, unitNo, stage, prerequisites } = req.body;
 
         const department = req.user.department;
 
+        const initiationMatch = await resolveInitiationId(jobNo, unitNo, stage);
+        if (initiationMatch.error) {
+            return res.status(400).json({ success: false, message: initiationMatch.error });
+        }
+        const initiationId = initiationMatch.id;
+
         // Check if review exists for this department
         const existing = await pool.query(
-            `SELECT id FROM model_reviews
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3 AND department = $4`,
-            [jobNo, unitNo, stage, department]
+            `SELECT id FROM review_prerequisites_submissions
+             WHERE initiation_id = $1 AND department = $2`,
+            [initiationId, department]
         );
 
         let reviewId;
@@ -112,7 +154,7 @@ router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
 
             // Check if already locked
             const lockCheck = await pool.query(
-                `SELECT is_locked FROM model_reviews WHERE id = $1`,
+                `SELECT is_locked FROM review_prerequisites_submissions WHERE id = $1`,
                 [reviewId]
             );
 
@@ -124,7 +166,7 @@ router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
             }
 
             await pool.query(
-                `UPDATE model_reviews
+                `UPDATE review_prerequisites_submissions
                  SET updated_at = CURRENT_TIMESTAMP, updated_by = $1
                  WHERE id = $2`,
                 [req.user.employeeId, reviewId]
@@ -133,11 +175,11 @@ router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
         } else {
 
             const insert = await pool.query(
-                `INSERT INTO model_reviews
-                 (job_no, unit_no, stage_name, department, status, is_locked, created_by)
-                 VALUES ($1,$2,$3,$4,'Draft',false,$5)
+                `INSERT INTO review_prerequisites_submissions
+                 (initiation_id, department, status, is_locked, created_by)
+                 VALUES ($1,$2,'Draft',false,$3)
                  RETURNING id`,
-                [jobNo, unitNo, stage, department, req.user.employeeId]
+                [initiationId, department, req.user.employeeId]
             );
 
             reviewId = insert.rows[0].id;
@@ -176,30 +218,30 @@ router.post("/save", authenticateToken, authorize("LE"), async (req, res) => {
     }
 });
 
-router.post("/submit", authenticateToken, authorize("LE"), async (req, res) => {
+router.post("/submit", authenticateToken, requireReviewRole("LE", { sameDept: true }), async (req, res) => {
     try {
         const { jobNo, unitNo, stage } = req.body;
         const department = req.user.department;
 
+        const initiationMatch = await resolveInitiationId(jobNo, unitNo, stage);
+        if (initiationMatch.error) {
+            return res.status(400).json({ success: false, message: initiationMatch.error });
+        }
+        const initiationId = initiationMatch.id;
+
         const reviewCheck = await pool.query(
-            `
-            SELECT id, is_locked
-            FROM model_reviews
-            WHERE job_no = $1
-            AND unit_no = $2
-            AND stage_name = $3
-            AND department = $4
-            `,
-            [jobNo, unitNo, stage, department]
+            `SELECT id, is_locked FROM review_prerequisites_submissions
+             WHERE initiation_id = $1 AND department = $2`,
+            [initiationId, department]
         );
-        
+
         if (reviewCheck.rows.length === 0) {
             return res.status(400).json({
                 success: false,
                 message: "Please save review before submitting."
             });
         }
-        
+
         if (reviewCheck.rows[0].is_locked) {
             return res.status(400).json({
                 success: false,
@@ -208,18 +250,13 @@ router.post("/submit", authenticateToken, authorize("LE"), async (req, res) => {
         }
 
         await pool.query(
-            `
-            UPDATE model_reviews
-            SET status = 'Submitted',
-                is_locked = true,
-                submitted_at = CURRENT_TIMESTAMP,
-                updated_by = $1
-            WHERE job_no = $2
-            AND unit_no = $3
-            AND stage_name = $4
-            AND department = $5
-            `,
-            [req.user.employeeId, jobNo, unitNo, stage, department]
+            `UPDATE review_prerequisites_submissions
+             SET status = 'Submitted',
+                 is_locked = true,
+                 submitted_at = CURRENT_TIMESTAMP,
+                 updated_by = $1
+             WHERE initiation_id = $2 AND department = $3`,
+            [req.user.employeeId, initiationId, department]
         );
 
         res.json({ success: true });
@@ -233,7 +270,7 @@ router.post("/submit", authenticateToken, authorize("LE"), async (req, res) => {
 // ===============================
 // GET SUBMITTED REVIEW FOR JE
 // ===============================
-router.get("/je-details", authenticateToken, authorize("JE"), async (req, res) => {
+router.get("/je-details", authenticateToken, requireReviewRole("JE", { sameDept: true }), async (req, res) => {
     const { jobNo, unitNo, stage } = req.query;
     const department = req.user.department;
 
@@ -242,16 +279,26 @@ router.get("/je-details", authenticateToken, authorize("JE"), async (req, res) =
     }
 
     try {
+        // Soft match, like GET / — an ambiguous (internal + external) or
+        // missing initiation just means "not submitted" for this read-only check.
+        const initiationMatch = await resolveInitiationId(jobNo, unitNo, stage);
+        if (initiationMatch.error) {
+            return res.json({ submitted: false });
+        }
+
+        // from_date/to_date/description live on the initiation, not the
+        // submission (dropped from this table earlier — this query used to
+        // select them from here and would have errored on first use).
         const result = await pool.query(
-            `SELECT from_date, to_date, description, submitted_at
-             FROM model_reviews
-             WHERE job_no = $1
-             AND unit_no = $2
-             AND stage_name = $3
-             AND department = $4
-             AND status = 'Submitted'
-             AND is_locked = true`,
-            [jobNo, unitNo, stage, department]
+            `SELECT mri.review_date_from AS from_date, mri.review_date_to AS to_date,
+                    mri.description, rps.submitted_at
+             FROM review_prerequisites_submissions rps
+             JOIN model_review_initiations mri ON mri.id = rps.initiation_id
+             WHERE rps.initiation_id = $1
+             AND rps.department = $2
+             AND rps.status = 'Submitted'
+             AND rps.is_locked = true`,
+            [initiationMatch.id, department]
         );
 
         if (result.rows.length === 0) {
@@ -266,19 +313,25 @@ router.get("/je-details", authenticateToken, authorize("JE"), async (req, res) =
     }
 });
 
-router.post("/edit", authenticateToken, authorize("LE"), async (req, res) => {
+router.post("/edit", authenticateToken, requireReviewRole("LE", { sameDept: true }), async (req, res) => {
 
     const { jobNo, unitNo, stage } = req.body;
     const department = req.user.department;
 
     try {
 
+        const initiationMatch = await resolveInitiationId(jobNo, unitNo, stage);
+        if (initiationMatch.error) {
+            return res.status(400).json({ error: initiationMatch.error });
+        }
+        const initiationId = initiationMatch.id;
+
         // Block edit if QR has already been generated for this review
         const initCheck = await pool.query(
             `SELECT COALESCE(qr_generated, false) AS qr_generated
              FROM model_review_initiations
-             WHERE job_no = $1 AND unit_no = $2 AND stage = $3`,
-            [jobNo, unitNo, stage]
+             WHERE id = $1`,
+            [initiationId]
         );
 
         if (initCheck.rows.length > 0 && initCheck.rows[0].qr_generated) {
@@ -288,9 +341,9 @@ router.post("/edit", authenticateToken, authorize("LE"), async (req, res) => {
         }
 
         const review = await pool.query(
-            `SELECT id FROM model_reviews
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3 AND department = $4`,
-            [jobNo, unitNo, stage, department]
+            `SELECT id FROM review_prerequisites_submissions
+             WHERE initiation_id = $1 AND department = $2`,
+            [initiationId, department]
         );
 
         if (review.rows.length === 0) {
@@ -298,11 +351,11 @@ router.post("/edit", authenticateToken, authorize("LE"), async (req, res) => {
         }
 
         await pool.query(
-            `UPDATE model_reviews
+            `UPDATE review_prerequisites_submissions
              SET is_locked = false,
                  status = 'Draft'
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3 AND department = $4`,
-            [jobNo, unitNo, stage, department]
+             WHERE initiation_id = $1 AND department = $2`,
+            [initiationId, department]
         );
 
         res.json({ success: true });

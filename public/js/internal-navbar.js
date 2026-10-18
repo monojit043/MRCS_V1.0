@@ -30,9 +30,7 @@
   var role     = localStorage.getItem('role')       || '';
   var dept     = localStorage.getItem('department') || '';
 
-  var isPiping = dept.toLowerCase() === 'piping';
-  var isLE     = role === 'LE' || role === 'GL';
-  var isPipingLE = isPiping && isLE;
+  var isLE = role === 'LE' || role === 'GL';
 
   var initials = fullName.trim()
     .split(/\s+/)
@@ -74,14 +72,18 @@
     'internal-initiation.html': [
       { key: 'initiate', hash: '#initiate', label: 'Initiate Review', icon: I.initiation },
     ],
-    'internal-admin.html':        [{ key: 'tags',        label: 'Tag Status & CRS',         icon: I.admin      }],
+    'internal-admin.html':        [
+      { key: 'tags', hash: '#tags', label: 'Tag Status & CRS', icon: I.admin },
+      { key: 'team', hash: '#team', label: 'Team',             icon: I.users },
+    ],
   };
 
   var pageTabs = TAB_DEFS[page];
   if (pageTabs) {
     var curHash = window.location.hash || '';
-    tabsHtml = pageTabs.map(function (t) {
-      var isActive = pageTabs.length === 1 || (t.hash ? curHash === t.hash : true);
+    tabsHtml = pageTabs.map(function (t, i) {
+      // No hash yet → the first tab is the active one
+      var isActive = pageTabs.length === 1 || (t.hash ? (curHash === t.hash || (!curHash && i === 0)) : true);
       var cls = 'tb-tab' + (isActive ? ' tb-tab--active' : '');
       var href = page + (t.hash || '');
       return '<a href="' + href + '" class="' + cls + '" data-tab="' + t.key + '"' + (t.hash ? ' data-hash="' + t.hash + '"' : '') + '>'
@@ -142,7 +144,7 @@
       + I.le + '<span>Lead Engineer</span></a>';
   }
 
-  if (isPipingLE) {
+  if (isLE) {
     coreNavHtml +=
       '<a href="internal-upload.html" class="sb-nav-item' + sbActive('upload') + '">'
       + I.upload + '<span>Upload &amp; Finalize</span></a>'

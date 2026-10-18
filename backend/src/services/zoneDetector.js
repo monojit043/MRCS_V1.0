@@ -2,13 +2,13 @@ const pool = require("../data/db");
 
 /*
 --------------------------------------------------
-Load zones and their polygon points for a job
+Load zones and their polygon points for an initiation
 --------------------------------------------------
 */
-const loadZones = async (jobId) => {
+const loadZones = async (initiationId) => {
 
     const query = `
-        SELECT 
+        SELECT
             z.id AS zone_id,
             z.zone_name,
             zp.point_order,
@@ -17,11 +17,11 @@ const loadZones = async (jobId) => {
         FROM zones z
         JOIN zone_points zp
             ON z.id = zp.zone_id
-        WHERE z.job_id = $1
+        WHERE z.initiation_id = $1
         ORDER BY z.id, zp.point_order
     `;
 
-    const result = await pool.query(query, [jobId]);
+    const result = await pool.query(query, [initiationId]);
 
     const zonesMap = {};
 

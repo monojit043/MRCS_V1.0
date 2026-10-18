@@ -5,10 +5,15 @@ const hasAuth    = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 const emailPort  = parseInt(process.env.EMAIL_PORT || (isGmail ? "465" : "25"));
 const emailHost  = isGmail ? "smtp.gmail.com" : (process.env.EMAIL_HOST || "localhost");
 
+// Connection type follows the PORT, for every provider (Gmail, Office 365, …):
+//   465 → implicit SSL (secure: true)
+//   587 → plain connection upgraded with STARTTLS (secure: false + requireTLS)
+// Forcing secure:true on 587 (the old Gmail branch) made every send fail with
+// "SSL routines … wrong version number".
 const transporterConfig = {
   host:   emailHost,
   port:   emailPort,
-  secure: isGmail ? true : emailPort === 465,
+  secure: emailPort === 465,
   family: 4,  // always force IPv4
   tls:    { rejectUnauthorized: false },
 };
@@ -20,7 +25,7 @@ if (hasAuth) {
   };
 }
 
-if (!isGmail && emailPort === 587) {
+if (emailPort === 587) {
   transporterConfig.requireTLS = true;
 }
 

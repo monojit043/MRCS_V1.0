@@ -134,12 +134,11 @@
   <script src="js/header.js"></script>
 
   <script>
-  /* ── Piping LE/GL guard ── */
+  /* ── Department GL/LE guard ── */
   (function(){
     var role = localStorage.getItem('role')||'';
-    var dept = (localStorage.getItem('department')||'').toLowerCase();
-    if(dept!=='piping'||!['LE','GL'].includes(role)){
-      document.querySelector('main').innerHTML='<div style="padding:60px;text-align:center;color:var(--col-muted);">Access restricted — Piping LE / GL only.</div>';
+    if(!['LE','GL'].includes(role)){
+      document.querySelector('main').innerHTML='<div style="padding:60px;text-align:center;color:var(--col-muted);">Access restricted — GL / LE only.</div>';
     }
   })();
 

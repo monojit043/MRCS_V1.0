@@ -374,20 +374,13 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
         });
 
-        if (!isPEM) {
-            // Auto-fill department from logged-in user
-            document.getElementById("departmentField").value = loggedDept;
-            // Restrict role to JE only
-            document.getElementById("roleSelect").innerHTML =
-                `<option value="JE">Job Engineer (JE)</option>`;
-        } else {
-            // PEM sees all roles
-            document.getElementById("roleSelect").innerHTML = `
-                <option value="">Select Role</option>
-                <option value="JE">Job Engineer</option>
-                <option value="LE">Lead Engineer</option>
-                <option value="GL">Group Lead</option>`;
-        }
+        // Every department staffs itself (PEM included): own department only.
+        // GL is never assigned here — it comes from PIMS or employee level.
+        // GL on the review may assign LE or JE; LE may assign JE (server enforces).
+        document.getElementById("departmentField").value = loggedDept;
+        document.getElementById("roleSelect").innerHTML = `
+            <option value="JE">Job Engineer (JE)</option>
+            <option value="LE">Lead Engineer (LE) — GL only</option>`;
 
         // Load review picker
         initReviewPicker("addUserReviewPicker", (jobNo, unitNo, stage) => {
@@ -683,6 +676,11 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
             populateGLSummary(data.summary || []);
+
+            if (data.allocation) {
+                document.getElementById("glAllocatedTags").innerText = data.allocation.allocated_tags || 0;
+                document.getElementById("glNotAllocatedTags").innerText = data.allocation.not_allocated_tags || 0;
+            }
 
             // 🔥 NEW → show overall tag status summary
             if (data.overall) {

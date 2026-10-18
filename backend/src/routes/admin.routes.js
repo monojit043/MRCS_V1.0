@@ -3,37 +3,71 @@ const router = express.Router();
 const pool = require("../data/db");
 const bcrypt = require("bcrypt");
 const { authenticateToken, authorize } = require("../middleware/auth.middleware");
+// Roles are checked on the review being acted on (job/unit/stage), not globally
+const { requireReviewRole, hasReviewRole, highestRoleOnReview } = require("../services/reviewAccess");
+const { validateInitiation } = require("../services/pimsLookup");
 
-// ADD USER (LE and above)
+// ADD USER — each department staffs itself (decided 2026-10-18).
+// GL is never assigned here: it comes live from PIMS (GL / SGL) or employee level >= 17.
+// On a job / master unit / stage (checked against PIMS — no review needs to exist yet):
+//   GL there (own department) → may assign LE or JE
+//   LE there (own department) → may assign JE
+// Only people from the caller's OWN department. Applies to PEM too (PEM department only).
 router.post("/add-user", authenticateToken, authorize("LE"), async (req, res) => {
     try {
-        const { employeeId, role, department, jobNo, unitNo, stage } = req.body;
+        const { employeeId, role, jobNo, unitNo, stage } = req.body;
+        const callerDept = (req.user.department || "").toLowerCase();
 
-        const callerDept = req.user.department?.toLowerCase();
-        const isPEM = callerDept === "pem";
-
-        if (!isPEM) {
-            if (role !== "JE") {
-                return res.status(403).json({ message: "You can only assign JE role" });
-            }
-            if (department?.toLowerCase() !== callerDept) {
-                return res.status(403).json({ message: "You can only assign users to your own department" });
-            }
+        if (!employeeId || !role || !jobNo || !unitNo || !stage) {
+            return res.status(400).json({ message: "Employee, role, job, unit and stage are all required" });
+        }
+        if (!["LE", "JE"].includes(role)) {
+            return res.status(400).json({ message: "Only LE or JE can be assigned — GL comes from PIMS or employee level" });
         }
 
-        // department arrives pre-cased from master_employees (e.g. "PEM"
-        // uppercase, everything else lowercase) — don't re-case it.
-        // department_check requires that exact casing.
+        // Job / master unit / stage must be valid in PIMS (live)
+        const invalid = await validateInitiation(jobNo, unitNo, stage);
+        if (invalid) return res.status(400).json({ message: invalid });
+
+        // Caller's role on THIS job / unit / stage, own department
+        const myRole = await highestRoleOnReview(req.user, { jobNo, unitNo, stage }, { sameDept: true });
+        const allowed = myRole === "GL" ? ["LE", "JE"] : myRole === "LE" ? ["JE"] : [];
+        if (!allowed.includes(role)) {
+            return res.status(403).json({
+                message: allowed.length
+                    ? `As ${myRole} on ${jobNo} / ${unitNo} / ${stage} you can only assign: ${allowed.join(", ")}`
+                    : `You are not GL / LE on ${jobNo} / ${unitNo} / ${stage}`,
+            });
+        }
+
+        // master_employees is a live view of the PC-2 employee master — no FK any
+        // more, so check here that the person exists (active, with a department)
+        const { rows: emp } = await pool.query(
+            "SELECT employee_id, department FROM master_employees WHERE UPPER(employee_id) = UPPER($1)",
+            [employeeId]
+        );
+        if (!emp.length) {
+            return res.status(400).json({ message: `Employee ${employeeId} is not in the employee master (PC-2), or is inactive / has no department` });
+        }
+        if (String(emp[0].department).toLowerCase() !== callerDept) {
+            return res.status(403).json({ message: `Employee ${employeeId} is not in your department (${callerDept})` });
+        }
+
+        // department taken from the employee master with its exact casing
+        // (e.g. "PEM" uppercase, everything else lowercase) — department_check needs it.
         await pool.query(
             `INSERT INTO user_assignments
-             (employee_id, role, department, job_no, unit_no, stage)
-             VALUES ($1,$2,$3,$4,$5,$6)`,
-            [employeeId, role, department, jobNo, unitNo, stage || null]
+             (employee_id, role, department, job_no, unit_no, stage, assigned_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [emp[0].employee_id, role, emp[0].department, jobNo, unitNo, stage, req.user.employeeId]
         );
 
         res.json({ message: "User assignment successful" });
 
     } catch (err) {
+        if (err.code === "23505") {
+            return res.status(409).json({ message: "This person already has that role on this job / unit / stage" });
+        }
         console.error("ADD USER ERROR:", err.message);
         res.status(500).json({ message: "Failed to add assignment", detail: err.message });
     }
@@ -130,7 +164,7 @@ router.get("/employee/:id", authenticateToken, authorize("LE"), async (req, res)
 
 router.get("/tags-summary",
     authenticateToken,
-    authorize("GL"),
+    requireReviewRole("GL"),
     async (req, res) => {
         try {
 
@@ -170,17 +204,18 @@ router.get("/tags-summary",
                     ) AS rejected
             
                 FROM tag_assignments ta
-            
+
                 JOIN tags t ON ta.tag_id = t.id
                 JOIN uploaded_folders uf ON t.folder_id = uf.id
-                JOIN jobs j ON uf.job_id = j.id
-            
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
+
                 WHERE
-                    j.job_no = $1
-                    AND j.unit_no = $2
-                    AND j.review_stage = $3
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                     AND t.status = 'LOCKED'
-            
+
                 GROUP BY ta.department
                 ORDER BY ta.department
                 `,
@@ -208,20 +243,44 @@ router.get("/tags-summary",
 
                 FROM tags t
                 JOIN uploaded_folders uf ON t.folder_id = uf.id
-                JOIN jobs j ON uf.job_id = j.id
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
 
                 WHERE
-                    j.job_no = $1
-                    AND j.unit_no = $2
-                    AND j.review_stage = $3
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                     AND t.status = 'LOCKED'
+                `,
+                [jobNo, unitNo, stage]
+            );
+
+            // Allocation summary — across ALL uploaded tags for this review,
+            // not just the LOCKED ones the above stats are scoped to, so an
+            // unallocated tag (uploaded but never assigned to a department)
+            // is visible instead of silently missing from every count.
+            const allocationResult = await pool.query(
+                `
+                SELECT
+                    COUNT(*) AS total_tags,
+                    COUNT(*) FILTER (WHERE t.status = 'LOCKED') AS allocated_tags,
+                    COUNT(*) FILTER (WHERE t.status IS DISTINCT FROM 'LOCKED') AS not_allocated_tags
+                FROM tags t
+                JOIN uploaded_folders uf ON t.folder_id = uf.id
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
+                WHERE
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                 `,
                 [jobNo, unitNo, stage]
             );
 
             res.json({
                 summary: deptResult.rows,
-                overall: overallResult.rows[0]
+                overall: overallResult.rows[0],
+                allocation: allocationResult.rows[0]
             });
 
         } catch (err) {
@@ -234,7 +293,7 @@ router.get("/tags-summary",
     }
 );
 
-router.get("/review-summary", authenticateToken, authorize("GL"), async (req, res) => {
+router.get("/review-summary", authenticateToken, requireReviewRole("GL"), async (req, res) => {
     try {
 
         const { jobNo, unitNo, stage } = req.query;
@@ -247,10 +306,11 @@ router.get("/review-summary", authenticateToken, authorize("GL"), async (req, re
 
         // Model review status per department
         const reviewResult = await pool.query(
-            `SELECT department, status, submitted_at
-             FROM model_reviews
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3
-             ORDER BY department`,
+            `SELECT rps.department, rps.status, rps.submitted_at
+             FROM review_prerequisites_submissions rps
+             JOIN model_review_initiations mri ON mri.id = rps.initiation_id
+             WHERE mri.job_no = $1 AND mri.unit_no = $2 AND mri.stage = $3
+             ORDER BY rps.department`,
             [jobNo, unitNo, stage]
         );
 
@@ -330,7 +390,7 @@ router.get("/review-summary", authenticateToken, authorize("GL"), async (req, re
 });
 
 // GET /api/admin/prerequisite-detail — initiation info + full prereq list with verification status
-router.get("/prerequisite-detail", authenticateToken, authorize("GL"), async (req, res) => {
+router.get("/prerequisite-detail", authenticateToken, requireReviewRole("GL"), async (req, res) => {
     try {
         const { jobNo, unitNo, stage } = req.query;
 
@@ -338,11 +398,12 @@ router.get("/prerequisite-detail", authenticateToken, authorize("GL"), async (re
             return res.status(400).json({ message: "jobNo, unitNo and stage required" });
         }
 
-        // Initiation details from PEM's initiation step
+        // Initiation details from PEM's (EXTERNAL) initiation step
         const initResult = await pool.query(
             `SELECT description, review_date_from, review_date_to, created_at
              FROM model_review_initiations
-             WHERE job_no = $1 AND unit_no = $2 AND stage = $3`,
+             WHERE job_no = $1 AND unit_no = $2 AND stage = $3
+               AND (UPPER(review_type) = 'EXTERNAL' OR review_type IS NULL)`,
             [jobNo, unitNo, stage]
         );
 

@@ -142,6 +142,20 @@
                     </div>
                 </div>
 
+                <!-- Allocation: every uploaded tag, whether or not it's been
+                     assigned to a department yet. Separate from the cards
+                     below, which only ever cover tags already allocated. -->
+                <div class="summary-cards">
+                    <div class="summary-card completed">
+                        <div class="card-title">Allocated Tags</div>
+                        <div class="card-value" id="glAllocatedTags">0</div>
+                    </div>
+                    <div class="summary-card not-started">
+                        <div class="card-title">Not Allocated</div>
+                        <div class="card-value" id="glNotAllocatedTags">0</div>
+                    </div>
+                </div>
+
                 <div class="summary-cards">
                     <div class="summary-card total">
                         <div class="card-title">Total Tags</div>
@@ -215,12 +229,12 @@
                     </div>
 
                     <div class="employee-footer">
-                        <button class="mrcs-btn" id="addEmployeeBtn">Add Employee</button>
+                        <button class="mrcs-btn" id="addEmployeeBtn">Assign Team Member</button>
                     </div>
 
                     <!-- Add employee inline form -->
                     <div id="addEmployeeForm" style="display:none;">
-                        <div class="add-user-title">Add New Employee</div>
+                        <div class="add-user-title">Assign Team Member (LE / JE) to a Model Review</div>
                         <div class="add-user-grid">
                             <div class="add-user-field">
                                 <label>Employee</label>

@@ -4,6 +4,8 @@ const router = express.Router();
 const pool = require("../data/db");
 const { authenticateToken, authorize, requirePEM } = require("../middleware/auth.middleware");
 const { sendTagAllocationNotification, sendTagReassignmentNotification } = require("../services/mailer");
+// Roles are checked on the review being acted on (job/unit/stage), not globally
+const { requireReviewRole, requireTagReviewRole } = require("../services/reviewAccess");
 
 const resolutionStorage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -54,11 +56,12 @@ router.get("/tags", authenticateToken, requirePEM, async (req, res) => {
             STRING_AGG(ta.department, ',') AS department
           FROM tags t
           JOIN uploaded_folders uf ON t.folder_id = uf.id
-          JOIN jobs j ON uf.job_id = j.id
+          JOIN model_review_initiations mri ON uf.initiation_id = mri.id
           LEFT JOIN tag_assignments ta ON ta.tag_id = t.id
-          WHERE j.job_no = $1
-            AND j.unit_no = $2
-            AND j.review_stage = $3
+          WHERE mri.job_no = $1
+            AND mri.unit_no = $2
+            AND mri.stage = $3
+            AND UPPER(mri.review_type) = 'EXTERNAL'
           GROUP BY t.id, t.tag_no, t.description, t.tag_date, t.view_name, t.status, t.original_snap_path, uf.folder_name, uf.model_file
           ORDER BY
             CASE WHEN t.tag_no ~ '^[0-9]+$' THEN t.tag_no::bigint END ASC NULLS LAST,
@@ -141,10 +144,10 @@ router.post("/tags/lock", authenticateToken, requirePEM, async (req, res) => {
                 if (!firstUpdate) return;
 
                 const jobResult = await pool.query(
-                    `SELECT j.job_no, j.unit_no, j.review_stage AS stage
+                    `SELECT mri.job_no, mri.unit_no, mri.stage
                      FROM tags t
                      JOIN uploaded_folders uf ON t.folder_id = uf.id
-                     JOIN jobs j ON uf.job_id = j.id
+                     JOIN model_review_initiations mri ON uf.initiation_id = mri.id
                      WHERE t.id = $1`,
                     [firstUpdate.tagId]
                 );
@@ -178,10 +181,11 @@ router.post("/tags/lock", authenticateToken, requirePEM, async (req, res) => {
                 // For each department, find assigned GL/LEs and notify
                 for (const [dept, tags] of Object.entries(deptTagsMap)) {
                     const assigneesR = await pool.query(
-                        `SELECT ua.role, me.employee_name, me.email
-                         FROM user_assignments ua
+                        `SELECT DISTINCT ua.role, me.employee_name, me.email
+                         FROM effective_assignments ua   -- stored + GL from PIMS (not the level>=17 population)
                          JOIN master_employees me ON me.employee_id = ua.employee_id
-                         WHERE ua.job_no = $1 AND ua.unit_no = $2 AND ua.stage = $3
+                         WHERE ua.job_no = $1 AND ua.unit_no = $2 AND (ua.stage = $3 OR ua.stage IS NULL)
+                           AND ua.source IN ('assigned', 'pims')
                            AND LOWER(ua.department) = $4
                            AND ua.role IN ('GL', 'LE')
                            AND me.email IS NOT NULL AND me.email <> ''`,
@@ -232,7 +236,7 @@ router.get("/folders", authenticateToken, async (req, res) => {
 
         if (!isPEM) {
             const assignCheck = await pool.query(
-                `SELECT 1 FROM user_assignments
+                `SELECT 1 FROM effective_assignments
                  WHERE employee_id = $1 AND job_no = $2 AND unit_no = $3
                  LIMIT 1`,
                 [req.user.employeeId, jobNo, unitNo]
@@ -251,20 +255,21 @@ router.get("/folders", authenticateToken, async (req, res) => {
           uf.folder_name,
           uf.model_file,
           uf.uploaded_at,
-          j.job_no,
-          j.unit_no,
-          j.review_stage,
+          mri.job_no,
+          mri.unit_no,
+          mri.stage AS review_stage,
           COALESCE(me.employee_name, uf.uploaded_by) AS uploaded_by_name,
           COUNT(t.id) AS tag_count,
           MIN(t.tag_date) AS model_review_date
         FROM uploaded_folders uf
-        JOIN jobs j ON uf.job_id = j.id
+        JOIN model_review_initiations mri ON uf.initiation_id = mri.id
         LEFT JOIN tags t ON t.folder_id = uf.id
         LEFT JOIN master_employees me ON me.employee_id = uf.uploaded_by
-        WHERE j.job_no = $1
-          AND j.unit_no = $2
-          AND j.review_stage = $3
-        GROUP BY uf.id, j.job_no, j.unit_no, j.review_stage, me.employee_name, uf.uploaded_by
+        WHERE mri.job_no = $1
+          AND mri.unit_no = $2
+          AND mri.stage = $3
+          AND UPPER(mri.review_type) = 'EXTERNAL'
+        GROUP BY uf.id, mri.job_no, mri.unit_no, mri.stage, me.employee_name, uf.uploaded_by
         ORDER BY uf.uploaded_at DESC
         `,
             [jobNo, unitNo, stage]
@@ -293,15 +298,15 @@ router.delete("/folders/:folderId", authenticateToken, requirePEM, async (req, r
         // Get folder info first
         const folderResult = await pool.query(
             `
-      SELECT 
+      SELECT
         uf.id,
         uf.folder_name,
         uf.storage_path,
-        j.job_no,
-        j.unit_no,
-        j.review_stage
+        mri.job_no,
+        mri.unit_no,
+        mri.stage AS review_stage
       FROM uploaded_folders uf
-      JOIN jobs j ON uf.job_id = j.id
+      JOIN model_review_initiations mri ON uf.initiation_id = mri.id
       WHERE uf.id = $1
       `,
             [folderId]
@@ -338,7 +343,7 @@ router.delete("/folders/:folderId", authenticateToken, requirePEM, async (req, r
     }
 });
 
-router.get("/job-engineer-tags", authenticateToken, authorize("JE"), async (req, res) => {
+router.get("/job-engineer-tags", authenticateToken, requireReviewRole("JE", { sameDept: true }), async (req, res) => {
     try {
 
         const { jobNo, unitNo, stage } = req.query;
@@ -353,7 +358,7 @@ router.get("/job-engineer-tags", authenticateToken, authorize("JE"), async (req,
         const assignmentCheck = await pool.query(
             `
             SELECT 1
-            FROM user_assignments
+            FROM effective_assignments
             WHERE employee_id = $1
             AND job_no = $2
             AND unit_no = $3
@@ -388,19 +393,20 @@ router.get("/job-engineer-tags", authenticateToken, authorize("JE"), async (req,
 
             FROM tags t
 
-            JOIN uploaded_folders uf 
+            JOIN uploaded_folders uf
                 ON t.folder_id = uf.id
 
-            JOIN jobs j 
-                ON uf.job_id = j.id
+            JOIN model_review_initiations mri
+                ON uf.initiation_id = mri.id
 
-            JOIN tag_assignments ta 
+            JOIN tag_assignments ta
                 ON ta.tag_id = t.id
 
-            WHERE 
-                j.job_no = $1
-                AND j.unit_no = $2
-                AND j.review_stage = $3
+            WHERE
+                mri.job_no = $1
+                AND mri.unit_no = $2
+                AND mri.stage = $3
+                AND UPPER(mri.review_type) = 'EXTERNAL'
                 AND t.status = 'LOCKED'
                 AND ta.department = $4
 
@@ -422,7 +428,7 @@ router.get("/job-engineer-tags", authenticateToken, authorize("JE"), async (req,
 
 router.post("/tags/:id/save-resolution",
     authenticateToken,
-    authorize("JE"),
+    requireTagReviewRole("JE", { sameDept: true }),
     uploadResolution.single("resolvedSnap"),
     async (req, res) => {
         try {
@@ -436,7 +442,7 @@ router.post("/tags/:id/save-resolution",
             // 1️⃣ Validate assignment
             const assignment = await pool.query(
                 `
-                SELECT 1 FROM user_assignments
+                SELECT 1 FROM effective_assignments
                 WHERE employee_id = $1
                 AND department = $2
                 `,
@@ -489,7 +495,7 @@ router.post("/tags/:id/save-resolution",
 
 router.post("/tags/:id/delete-snap",
     authenticateToken,
-    authorize("JE"),
+    requireTagReviewRole("JE", { sameDept: true }),
     async (req, res) => {
         try {
 
@@ -562,7 +568,7 @@ router.post("/tags/:id/delete-snap",
 
 router.post("/tags/:id/submit-resolution",
     authenticateToken,
-    authorize("JE"),
+    requireTagReviewRole("JE", { sameDept: true }),
     async (req, res) => {
         try {
             const tagId = req.params.id;
@@ -630,7 +636,7 @@ router.post("/tags/:id/submit-resolution",
 
 router.get("/lead-review-tags",
     authenticateToken,
-    authorize("LE"),
+    requireReviewRole("LE"),
     async (req, res) => {
         try {
             const { jobNo, unitNo, stage } = req.query;
@@ -646,7 +652,7 @@ router.get("/lead-review-tags",
             const assignmentCheck = await pool.query(
                 `
           SELECT department
-          FROM user_assignments
+          FROM effective_assignments
           WHERE employee_id = $1
           AND job_no = $2
           AND unit_no = $3
@@ -685,13 +691,14 @@ router.get("/lead-review-tags",
                 FROM tags t
 
                 JOIN uploaded_folders uf ON t.folder_id = uf.id
-                JOIN jobs j ON uf.job_id = j.id
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
                 JOIN tag_assignments ta ON ta.tag_id = t.id
 
                 WHERE
-                    j.job_no = $1
-                    AND j.unit_no = $2
-                    AND j.review_stage = $3
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                     AND ta.department = $4
 
                 ORDER BY t.tag_no ASC
@@ -716,7 +723,7 @@ router.get("/lead-review-tags",
 
 router.post("/tags/:id/approve",
     authenticateToken,
-    authorize("LE"),
+    requireTagReviewRole("LE", { sameDept: true }),
     async (req, res) => {
         try {
             const tagId = req.params.id;
@@ -730,20 +737,20 @@ router.post("/tags/:id/approve",
             // 1️⃣ Validate assignment
             const assignment = await pool.query(
                 `
-                SELECT 1 FROM user_assignments
+                SELECT 1 FROM effective_assignments
                 WHERE employee_id = $1
                 AND job_no = (
-                    SELECT j.job_no
+                    SELECT mri.job_no
                     FROM tags t
                     JOIN uploaded_folders uf ON t.folder_id = uf.id
-                    JOIN jobs j ON uf.job_id = j.id
+                    JOIN model_review_initiations mri ON uf.initiation_id = mri.id
                     WHERE t.id = $2
                 )
                 AND unit_no = (
-                    SELECT j.unit_no
+                    SELECT mri.unit_no
                     FROM tags t
                     JOIN uploaded_folders uf ON t.folder_id = uf.id
-                    JOIN jobs j ON uf.job_id = j.id
+                    JOIN model_review_initiations mri ON uf.initiation_id = mri.id
                     WHERE t.id = $2
                 )
                 AND department = $3
@@ -818,7 +825,7 @@ router.post("/tags/:id/approve",
 
 router.post("/tags/:id/reject",
     authenticateToken,
-    authorize("LE"),
+    requireTagReviewRole("LE", { sameDept: true }),
     async (req, res) => {
         try {
             const tagId = req.params.id;
@@ -873,7 +880,7 @@ router.post("/tags/:id/reject",
 
 router.get("/lead-review-history",
     authenticateToken,
-    authorize("LE"),
+    requireReviewRole("LE"),
     async (req, res) => {
         try {
             const { jobNo, unitNo, stage } = req.query;
@@ -889,7 +896,7 @@ router.get("/lead-review-history",
             const assignmentCheck = await pool.query(
                 `
           SELECT department
-          FROM user_assignments
+          FROM effective_assignments
           WHERE employee_id = $1
           AND job_no = $2
           AND unit_no = $3
@@ -924,14 +931,15 @@ router.get("/lead-review-history",
                 FROM tags t
 
                 JOIN uploaded_folders uf ON t.folder_id = uf.id
-                JOIN jobs j ON uf.job_id = j.id
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
 
                 JOIN tag_assignments ta ON ta.tag_id = t.id
 
                 WHERE
-                    j.job_no = $1
-                    AND j.unit_no = $2
-                    AND j.review_stage = $3
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                     AND ta.department = $4
                     AND ta.resolution_status IN ('APPROVED','REJECTED')
 
@@ -957,7 +965,7 @@ router.get("/lead-review-history",
 
 router.get("/lead-review-summary",
     authenticateToken,
-    authorize("LE"),
+    requireReviewRole("LE"),
     async (req, res) => {
         try {
             const { jobNo, unitNo, stage } = req.query;
@@ -973,7 +981,7 @@ router.get("/lead-review-summary",
             const assignmentCheck = await pool.query(
                 `
           SELECT department
-          FROM user_assignments
+          FROM effective_assignments
           WHERE employee_id = $1
           AND job_no = $2
           AND unit_no = $3
@@ -1010,16 +1018,17 @@ router.get("/lead-review-summary",
                     ) AS not_started
             
                 FROM tags t
-            
+
                 JOIN uploaded_folders uf ON t.folder_id = uf.id
-                JOIN jobs j ON uf.job_id = j.id
-            
+                JOIN model_review_initiations mri ON uf.initiation_id = mri.id
+
                 JOIN tag_assignments ta ON ta.tag_id = t.id
-            
-                WHERE 
-                    j.job_no = $1
-                    AND j.unit_no = $2
-                    AND j.review_stage = $3
+
+                WHERE
+                    mri.job_no = $1
+                    AND mri.unit_no = $2
+                    AND mri.stage = $3
+                    AND UPPER(mri.review_type) = 'EXTERNAL'
                     AND ta.department = $4
                 `,
                 [jobNo, unitNo, stage, department]
@@ -1053,10 +1062,10 @@ router.post("/tags/:id/reassign",
 
             // 1. Resolve job/unit/stage for this tag
             const jobResult = await pool.query(
-                `SELECT j.job_no, j.unit_no, j.review_stage
+                `SELECT mri.job_no, mri.unit_no, mri.stage AS review_stage
                  FROM tags t
                  JOIN uploaded_folders uf ON t.folder_id = uf.id
-                 JOIN jobs j ON uf.job_id = j.id
+                 JOIN model_review_initiations mri ON uf.initiation_id = mri.id
                  WHERE t.id = $1`,
                 [tagId]
             );
@@ -1067,10 +1076,11 @@ router.post("/tags/:id/reassign",
 
             const { job_no, unit_no, review_stage } = jobResult.rows[0];
 
-            // 2. Block if CRS report already generated
+            // 2. Block if the EXTERNAL review's CRS is already generated
+            //    (a department's internal CRS for the same job/unit/stage doesn't count)
             const crsCheck = await pool.query(
                 `SELECT 1 FROM crs_reports
-                 WHERE job_no = $1 AND unit_no = $2 AND review_stage = $3`,
+                 WHERE job_no = $1 AND unit_no = $2 AND review_stage = $3 AND review_type = 'EXTERNAL'`,
                 [job_no, unit_no, review_stage]
             );
 
@@ -1137,10 +1147,11 @@ router.post("/tags/:id/reassign",
 
                         for (const dept of toAdd) {
                             const assigneesR = await pool.query(
-                                `SELECT ua.role, me.employee_name, me.email
-                                 FROM user_assignments ua
+                                `SELECT DISTINCT ua.role, me.employee_name, me.email
+                                 FROM effective_assignments ua   -- stored + GL from PIMS (not the level>=17 population)
                                  JOIN master_employees me ON me.employee_id = ua.employee_id
-                                 WHERE ua.job_no = $1 AND ua.unit_no = $2 AND ua.stage = $3
+                                 WHERE ua.job_no = $1 AND ua.unit_no = $2 AND (ua.stage = $3 OR ua.stage IS NULL)
+                                   AND ua.source IN ('assigned', 'pims')
                                    AND LOWER(ua.department) = $4
                                    AND ua.role IN ('GL', 'LE')
                                    AND me.email IS NOT NULL AND me.email <> ''`,

@@ -238,6 +238,21 @@ const storage = multer.diskStorage({
 // Multer middleware
 const upload = multer({ storage });
 
+// Resolves (job_no, unit_no, stage) to the matching EXTERNAL
+// model_review_initiations id — uploads anchor directly to the initiation
+// now, no separate jobs row. Returns { id } or { error } if no external
+// review has been initiated for this job/unit/stage.
+async function resolveExternalInitiationId(jobNo, unitNo, stage) {
+    const initiation = await pool.query(
+        `SELECT id FROM model_review_initiations WHERE job_no = $1 AND unit_no = $2 AND stage = $3 AND UPPER(review_type) = 'EXTERNAL'`,
+        [jobNo, unitNo, stage]
+    );
+    if (initiation.rows.length === 0) {
+        return { error: "No external review has been initiated for this job/unit/stage." };
+    }
+    return { id: initiation.rows[0].id };
+}
+
 // Middleware to create uploadId & folder
 const prepareUploadFolder = (req, res, next) => {
 
@@ -291,41 +306,23 @@ router.post(
                 });
             }
 
-            // 🔹 1. Check if job exists
-            let jobResult = await pool.query(
-                `SELECT id FROM jobs 
-                 WHERE job_no = $1 
-                 AND unit_no = $2 
-                 AND review_stage = $3`,
-                [jobNo, unitNo, stage]
-            );
-
-            let jobId;
-
-            if (jobResult.rows.length > 0) {
-                jobId = jobResult.rows[0].id;
-            } else {
-            
-                const newJob = await pool.query(
-                    `INSERT INTO jobs (job_no, unit_no, review_stage)
-                     VALUES ($1, $2, $3)
-                     RETURNING id`,
-                    [jobNo, unitNo, stage]
-                );
-            
-                jobId = newJob.rows[0].id;
+            // 🔹 1. Resolve the initiation this upload belongs to
+            const initMatch = await resolveExternalInitiationId(jobNo, unitNo, stage);
+            if (initMatch.error) {
+                return res.status(400).json({ message: initMatch.error });
             }
-            
-            // 🔹 Load zones AFTER jobId is known
-            const zones = await loadZones(jobId);
+            const initiationId = initMatch.id;
+
+            // 🔹 Load zones AFTER initiationId is known
+            const zones = await loadZones(initiationId);
 
             // 🔹 2. Insert folder (with model_file)
             const folderInsert = await pool.query(
-                `INSERT INTO uploaded_folders 
-                 (job_id, folder_name, uploaded_by, model_file)
+                `INSERT INTO uploaded_folders
+                 (initiation_id, folder_name, uploaded_by, model_file)
                  VALUES ($1, $2, $3, $4)
                  RETURNING id`,
-                [jobId, originalFolderName, req.user.employeeId, model_file]
+                [initiationId, originalFolderName, req.user.employeeId, model_file]
             );
 
             const folderId = folderInsert.rows[0].id;
@@ -398,7 +395,7 @@ router.post(
 
             res.json({
                 message: "Folder uploaded and saved to database successfully",
-                jobId,
+                initiationId,
                 folderId,
                 tagCount: tags.length,
             });
@@ -472,37 +469,20 @@ router.post(
                 });
             }
 
-            // 🔹 1. Check if job exists (identical to /upload-folder)
-            let jobResult = await pool.query(
-                `SELECT id FROM jobs
-                 WHERE job_no = $1
-                 AND unit_no = $2
-                 AND review_stage = $3`,
-                [jobNo, unitNo, stage]
-            );
-
-            let jobId;
-
-            if (jobResult.rows.length > 0) {
-                jobId = jobResult.rows[0].id;
-            } else {
-                const newJob = await pool.query(
-                    `INSERT INTO jobs (job_no, unit_no, review_stage)
-                     VALUES ($1, $2, $3)
-                     RETURNING id`,
-                    [jobNo, unitNo, stage]
-                );
-
-                jobId = newJob.rows[0].id;
+            // 🔹 1. Resolve the initiation this upload belongs to (identical to /upload-folder)
+            const initMatch = await resolveExternalInitiationId(jobNo, unitNo, stage);
+            if (initMatch.error) {
+                return res.status(400).json({ message: initMatch.error });
             }
+            const initiationId = initMatch.id;
 
             // 🔹 2. Insert folder row — model_file marks this as a non-model source
             const folderInsert = await pool.query(
                 `INSERT INTO uploaded_folders
-                 (job_id, folder_name, uploaded_by, model_file)
+                 (initiation_id, folder_name, uploaded_by, model_file)
                  VALUES ($1, $2, $3, $4)
                  RETURNING id`,
-                [jobId, req.file.originalname, req.user.employeeId, "(Manual entry — no model file)"]
+                [initiationId, req.file.originalname, req.user.employeeId, "(Manual entry — no model file)"]
             );
 
             const folderId = folderInsert.rows[0].id;
@@ -519,7 +499,7 @@ router.post(
 
             res.json({
                 message: "Excel tags uploaded and saved to database successfully",
-                jobId,
+                initiationId,
                 folderId,
                 tagCount: tags.length,
             });

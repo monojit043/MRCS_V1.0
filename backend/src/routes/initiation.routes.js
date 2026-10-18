@@ -3,6 +3,14 @@ const router = express.Router();
 const pool = require("../data/db");
 const { authenticateToken, authorize } = require("../middleware/auth.middleware");
 const { sendAssignmentNotification } = require("../services/mailer");
+const { validateInitiation } = require("../services/pimsLookup");
+// Roles are checked on the review being acted on (job/unit/stage), not globally
+const { requireReviewRole } = require("../services/reviewAccess");
+
+// These routes serve the EXTERNAL side. Internal reviews (review_type INTERNAL) share
+// model_review_initiations but have their own pages and routes (/api/internal/*).
+const EXTERNAL_ONLY     = "(UPPER(review_type) = 'EXTERNAL' OR review_type IS NULL)";
+const EXTERNAL_ONLY_MRI = "(UPPER(mri.review_type) = 'EXTERNAL' OR mri.review_type IS NULL)";
 
 function requirePEM(req, res, next) {
   const dept = req.user?.department?.toLowerCase();
@@ -11,6 +19,16 @@ function requirePEM(req, res, next) {
     return res.status(403).json({ message: "Access denied: PEM GL or PEM LE only" });
   }
   next();
+}
+
+// PEM no longer assigns departments' GL / LE (decided 2026-10-18). Department GL now
+// comes live from PIMS (GL / SGL roles) or eil_employees.level >= 17, and a GL assigns
+// their own department's LE / JE (admin add-user, internal assign). The old PEM
+// assignment handlers below are kept but unreachable.
+function pemLeadAssignmentRetired(req, res) {
+  res.status(410).json({
+    message: "PEM no longer assigns department GL / LE. Department GLs come from PIMS or employee level; each department's GL assigns its own LE / JE.",
+  });
 }
 
 // POST /api/initiation — PEM only: create a new model review initiation
@@ -25,15 +43,26 @@ router.post("/", authenticateToken, requirePEM, async (req, res) => {
     const cleanJob  = jobNo.trim().toUpperCase();
     const cleanUnit = unitNo.trim().toUpperCase();
 
-    // Explicit duplicate check (case-insensitive)
+    // Only PIMS jobs, only MASTER units, only standard stages (live from PC-2)
+    let invalid;
+    try {
+      invalid = await validateInitiation(cleanJob, cleanUnit, stage);
+    } catch (err) {
+      console.error("validateInitiation: PC-2 unreachable:", err.message);
+      return res.status(503).json({ message: "PIMS (PC-2) is unreachable — cannot verify Job / Unit. Please try again shortly." });
+    }
+    if (invalid) return res.status(400).json({ message: invalid });
+
+    // Explicit duplicate check (case-insensitive) — only another EXTERNAL review counts;
+    // departments' internal reviews for the same job / unit / stage may already exist.
     const duplicate = await pool.query(
       `SELECT 1 FROM model_review_initiations
-       WHERE UPPER(job_no) = $1 AND UPPER(unit_no) = $2 AND stage = $3`,
+       WHERE UPPER(job_no) = $1 AND UPPER(unit_no) = $2 AND stage = $3 AND ${EXTERNAL_ONLY}`,
       [cleanJob, cleanUnit, stage]
     );
     if (duplicate.rows.length > 0) {
       return res.status(409).json({
-        message: `A review already exists for Job ${cleanJob} / Unit ${cleanUnit} / Stage ${stage}.`
+        message: `An external review already exists for Job ${cleanJob} / Unit ${cleanUnit} / Stage ${stage}.`
       });
     }
 
@@ -69,20 +98,25 @@ router.get("/", authenticateToken, async (req, res) => {
   try {
     let rows;
 
-    if (req.user.role === "GL" || req.user.department?.toLowerCase() === "pem") {
+    // Only PEM sees every review. Everyone else — including GLs — sees only the
+    // reviews they are assigned to (a GL on one review has no rights on others).
+    // EXTERNAL reviews only — internal reviews have their own pages (/api/internal/*).
+    if (req.user.department?.toLowerCase() === "pem") {
       const result = await pool.query(
-        `SELECT * FROM model_review_initiations ORDER BY created_at DESC`
+        `SELECT * FROM model_review_initiations
+         WHERE ${EXTERNAL_ONLY}
+         ORDER BY created_at DESC`
       );
       rows = result.rows;
     } else {
       const result = await pool.query(
         `SELECT DISTINCT mri.*
          FROM model_review_initiations mri
-         JOIN user_assignments ua
+         JOIN effective_assignments ua
            ON ua.job_no = mri.job_no
            AND ua.unit_no = mri.unit_no
            AND (ua.stage = mri.stage OR ua.stage IS NULL)
-         WHERE ua.employee_id = $1
+         WHERE ua.employee_id = $1 AND ${EXTERNAL_ONLY_MRI}
          ORDER BY mri.created_at DESC`,
         [req.user.employeeId]
       );
@@ -101,9 +135,12 @@ router.get("/dropdown", authenticateToken, async (req, res) => {
   try {
     let rows;
 
+    // EXTERNAL reviews only — this picker is used by the external pages
     if (req.user.department?.toLowerCase() === "pem") {
       const result = await pool.query(
-        `SELECT id, job_no, unit_no, stage FROM model_review_initiations ORDER BY created_at DESC`
+        `SELECT id, job_no, unit_no, stage FROM model_review_initiations
+         WHERE ${EXTERNAL_ONLY}
+         ORDER BY created_at DESC`
       );
       rows = result.rows;
     } else {
@@ -111,11 +148,11 @@ router.get("/dropdown", authenticateToken, async (req, res) => {
       const result = await pool.query(
         `SELECT DISTINCT mri.id, mri.job_no, mri.unit_no, mri.stage
          FROM model_review_initiations mri
-         JOIN user_assignments ua
+         JOIN effective_assignments ua
            ON ua.job_no = mri.job_no
            AND ua.unit_no = mri.unit_no
            AND (ua.stage = mri.stage OR ua.stage IS NULL)
-         WHERE ua.employee_id = $1
+         WHERE ua.employee_id = $1 AND ${EXTERNAL_ONLY_MRI}
          ORDER BY mri.job_no, mri.unit_no, mri.stage`,
         [req.user.employeeId]
       );
@@ -148,10 +185,9 @@ router.get("/summary", authenticateToken, async (req, res) => {
         COUNT(DISTINCT CASE
           WHEN mr.is_locked = true THEN mri.id END)                                        AS report_closed
       FROM model_review_initiations mri
-      LEFT JOIN model_reviews mr
-        ON mr.job_no = mri.job_no
-       AND mr.unit_no = mri.unit_no
-       AND mr.stage_name = mri.stage
+      LEFT JOIN review_prerequisites_submissions mr
+        ON mr.initiation_id = mri.id
+      WHERE ${EXTERNAL_ONLY_MRI}
     `);
 
     const s = result.rows[0];
@@ -172,7 +208,7 @@ router.get("/summary", authenticateToken, async (req, res) => {
 });
 
 // GET /api/initiation/detail?jobNo=&unitNo=&stage= — single initiation record
-router.get("/detail", authenticateToken, async (req, res) => {
+router.get("/detail", authenticateToken, requireReviewRole("JE"), async (req, res) => {
   const { jobNo, unitNo, stage } = req.query;
   if (!jobNo || !unitNo || !stage) {
     return res.status(400).json({ message: "jobNo, unitNo, stage required" });
@@ -195,14 +231,21 @@ router.get("/detail", authenticateToken, async (req, res) => {
 router.get("/my-stats", authenticateToken, async (req, res) => {
   const employeeId = req.user.employeeId;
   try {
+    // One row per review, with the user's highest role on it. Computed GL rows
+    // (from PIMS / level) have stage NULL = every stage.
     const assignResult = await pool.query(`
-      SELECT ua.job_no, ua.unit_no, ua.stage, ua.role, ua.department,
-             mri.review_date_from, mri.review_date_to, mri.description
-      FROM user_assignments ua
-      JOIN model_review_initiations mri
-        ON mri.job_no = ua.job_no AND mri.unit_no = ua.unit_no AND mri.stage = ua.stage
-      WHERE ua.employee_id = $1
-      ORDER BY mri.created_at DESC
+      SELECT * FROM (
+        SELECT DISTINCT ON (mri.id)
+               ua.job_no, ua.unit_no, mri.stage, ua.role, ua.department,
+               mri.review_date_from, mri.review_date_to, mri.description, mri.created_at
+        FROM effective_assignments ua
+        JOIN model_review_initiations mri
+          ON mri.job_no = ua.job_no AND mri.unit_no = ua.unit_no
+         AND (mri.stage = ua.stage OR ua.stage IS NULL)
+        WHERE UPPER(ua.employee_id) = UPPER($1) AND ${EXTERNAL_ONLY_MRI}
+        ORDER BY mri.id, CASE ua.role WHEN 'GL' THEN 1 WHEN 'LE' THEN 2 ELSE 3 END
+      ) x
+      ORDER BY x.created_at DESC
     `, [employeeId]);
 
     const withStats = await Promise.all(assignResult.rows.map(async (a) => {
@@ -218,8 +261,8 @@ router.get("/my-stats", authenticateToken, async (req, res) => {
         FROM tag_assignments ta
         JOIN tags t   ON ta.tag_id   = t.id
         JOIN uploaded_folders uf ON t.folder_id = uf.id
-        JOIN jobs j   ON uf.job_id   = j.id
-        WHERE j.job_no = $1 AND j.unit_no = $2 AND j.review_stage = $3
+        JOIN model_review_initiations mri2 ON uf.initiation_id = mri2.id
+        WHERE mri2.job_no = $1 AND mri2.unit_no = $2 AND mri2.stage = $3
           AND LOWER(ta.department) = LOWER($4)
           AND t.status = 'LOCKED'
       `, [a.job_no, a.unit_no, a.stage, a.department]);
@@ -244,7 +287,7 @@ router.get("/my-stats", authenticateToken, async (req, res) => {
 });
 
 // GET /api/initiation/assignments?jobNo=&unitNo=&stage= — PEM to manage, GL/LE to view
-router.get("/assignments", authenticateToken, async (req, res) => {
+router.get("/assignments", authenticateToken, requireReviewRole("JE"), async (req, res) => {
   try {
     const { jobNo, unitNo, stage } = req.query;
     if (!jobNo || !unitNo || !stage) {
@@ -269,7 +312,7 @@ router.get("/assignments", authenticateToken, async (req, res) => {
 });
 
 // POST /api/initiation/assignments — PEM only: assign GL/LE to a review
-router.post("/assignments", authenticateToken, requirePEM, async (req, res) => {
+router.post("/assignments", authenticateToken, requirePEM, pemLeadAssignmentRetired, async (req, res) => {
   try {
     const { employeeId, role, department, jobNo, unitNo, stage } = req.body;
 
@@ -349,7 +392,7 @@ router.post("/assignments", authenticateToken, requirePEM, async (req, res) => {
 });
 
 // DELETE /api/initiation/assignments — PEM only: remove by composite key
-router.delete("/assignments", authenticateToken, requirePEM, async (req, res) => {
+router.delete("/assignments", authenticateToken, requirePEM, pemLeadAssignmentRetired, async (req, res) => {
   try {
     const { employeeId, jobNo, unitNo, stage, department } = req.body;
 
@@ -369,7 +412,7 @@ router.delete("/assignments", authenticateToken, requirePEM, async (req, res) =>
 // GET /api/initiation/assignments/suggestions?jobNo=&unitNo=&stage=
 // PEM only: suggest GL/LE carried over from the most recently initiated OTHER
 // stage of the same job/unit, excluding anyone already assigned to this stage.
-router.get("/assignments/suggestions", authenticateToken, requirePEM, async (req, res) => {
+router.get("/assignments/suggestions", authenticateToken, requirePEM, pemLeadAssignmentRetired, async (req, res) => {
   try {
     const { jobNo, unitNo, stage } = req.query;
     if (!jobNo || !unitNo || !stage) {
@@ -445,7 +488,7 @@ router.get("/assignments/suggestions", authenticateToken, requirePEM, async (req
 
 // POST /api/initiation/assignments/copy-forward — PEM only: apply a chosen
 // subset of suggested assignments to the target stage.
-router.post("/assignments/copy-forward", authenticateToken, requirePEM, async (req, res) => {
+router.post("/assignments/copy-forward", authenticateToken, requirePEM, pemLeadAssignmentRetired, async (req, res) => {
   try {
     const { jobNo, unitNo, stage, assignments } = req.body;
 
@@ -518,8 +561,11 @@ router.get("/my-review-detail", authenticateToken, async (req, res) => {
 
   try {
     const assignCheck = await pool.query(
-      `SELECT role, department FROM user_assignments
-       WHERE employee_id = $1 AND job_no = $2 AND unit_no = $3 AND stage = $4`,
+      `SELECT role, department FROM effective_assignments
+       WHERE UPPER(employee_id) = UPPER($1) AND job_no = $2 AND unit_no = $3
+         AND (stage = $4 OR stage IS NULL)
+       ORDER BY CASE role WHEN 'GL' THEN 1 WHEN 'LE' THEN 2 ELSE 3 END
+       LIMIT 1`,
       [employeeId, jobNo, unitNo, stage]
     );
 
@@ -532,9 +578,9 @@ router.get("/my-review-detail", authenticateToken, async (req, res) => {
     const reviewResult = await pool.query(
       `SELECT mri.*, COALESCE(mr.is_locked, false) AS is_locked
        FROM model_review_initiations mri
-       LEFT JOIN model_reviews mr
-         ON mr.job_no = mri.job_no AND mr.unit_no = mri.unit_no AND mr.stage_name = mri.stage
-       WHERE mri.job_no = $1 AND mri.unit_no = $2 AND mri.stage = $3`,
+       LEFT JOIN review_prerequisites_submissions mr
+         ON mr.initiation_id = mri.id
+       WHERE mri.job_no = $1 AND mri.unit_no = $2 AND mri.stage = $3 AND ${EXTERNAL_ONLY_MRI}`,
       [jobNo, unitNo, stage]
     );
 
@@ -548,12 +594,11 @@ router.get("/my-review-detail", authenticateToken, async (req, res) => {
        FROM tag_assignments ta
        JOIN tags t         ON ta.tag_id   = t.id
        JOIN uploaded_folders uf ON t.folder_id = uf.id
-       JOIN jobs j         ON uf.job_id   = j.id
-       WHERE j.job_no = $1 AND j.unit_no = $2 AND j.review_stage = $3
-         AND LOWER(ta.department) = LOWER($4)
+       WHERE uf.initiation_id = $1
+         AND LOWER(ta.department) = LOWER($2)
          AND t.status = 'LOCKED'
        ORDER BY t.tag_no`,
-      [jobNo, unitNo, stage, assignment.department]
+      [reviewResult.rows[0].id, assignment.department]
     );
 
     res.json({
@@ -572,13 +617,14 @@ router.delete("/:id", authenticateToken, requirePEM, async (req, res) => {
   try {
     const { id } = req.params;
 
+    // PEM deletes EXTERNAL reviews only — departments' internal reviews are theirs
     const result = await pool.query(
-      `DELETE FROM model_review_initiations WHERE id = $1 RETURNING *`,
+      `DELETE FROM model_review_initiations WHERE id = $1 AND ${EXTERNAL_ONLY} RETURNING *`,
       [id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Initiation not found" });
+      return res.status(404).json({ message: "External review not found" });
     }
 
     res.json({ message: "Review initiation deleted" });

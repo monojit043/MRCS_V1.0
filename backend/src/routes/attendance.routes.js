@@ -2,9 +2,15 @@ const express = require("express");
 const router = express.Router();
 const pool = require("../data/db");
 const { randomUUID } = require("crypto");
+// Attendance pages call these with plain fetch (no Bearer token) → the signed-in user
+// comes from the shared single sign-on cookie. Generating a QR / viewing live attendance
+// needs LE or GL on that review (PEM: all). /mark-attendance stays PUBLIC on purpose:
+// visitors scan the QR on their phones; it is protected by the QR token instead.
+const { authenticateCookie } = require("../middleware/auth.middleware");
+const { isPEM, hasReviewRole, hasRoleOnJobUnit } = require("../services/reviewAccess");
 
 // Generate QR
-router.post("/generate-qr", async (req, res) => {
+router.post("/generate-qr", authenticateCookie, async (req, res) => {
     const { job_no, unit_no } = req.body;
 
     if (!job_no || !unit_no) {
@@ -15,8 +21,9 @@ router.post("/generate-qr", async (req, res) => {
 
         // 1. Auto-detect active stage from initiation date range
         const initiationResult = await pool.query(
-            `SELECT stage FROM model_review_initiations
+            `SELECT id, stage FROM model_review_initiations
              WHERE job_no = $1 AND unit_no = $2
+             AND (UPPER(review_type) = 'EXTERNAL' OR review_type IS NULL)   -- attendance is for external review meetings
              AND CURRENT_DATE BETWEEN review_date_from AND review_date_to
              LIMIT 1`,
             [job_no, unit_no]
@@ -27,6 +34,12 @@ router.post("/generate-qr", async (req, res) => {
         }
 
         const stage = initiationResult.rows[0].stage;
+        const initiationId = initiationResult.rows[0].id;
+
+        // Only LE / GL on THIS review (PEM: any) may generate its attendance QR
+        if (!(await hasReviewRole(req.user, { jobNo: job_no, unitNo: unit_no, stage }, "LE"))) {
+            return res.status(403).json({ success: false, message: `Access denied: you are not LE or above on ${job_no} / ${unit_no} / ${stage}` });
+        }
 
         // 2. Required departments for this stage
         const deptResult = await pool.query(
@@ -44,10 +57,10 @@ router.post("/generate-qr", async (req, res) => {
         // 3. Check all required departments have submitted
         const submittedResult = await pool.query(
             `SELECT LOWER(department) AS department
-             FROM model_reviews
-             WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3
+             FROM review_prerequisites_submissions
+             WHERE initiation_id = $1
              AND is_locked = true AND LOWER(status) = 'submitted'`,
-            [job_no, unit_no, stage]
+            [initiationId]
         );
         const submittedDepts = new Set(submittedResult.rows.map(r => r.department));
         const pendingDepts = requiredDepts.filter(d => !submittedDepts.has(d));
@@ -105,6 +118,10 @@ router.post("/mark-attendance", async (req, res) => {
     if (!qr_token || !name || !phone_number) {
         return res.status(400).json({ success: false, message: "Missing required fields" });
     }
+    // QR tokens are UUIDs — reject anything else cleanly instead of a database error
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(qr_token))) {
+        return res.status(400).json({ success: false, message: "Invalid or expired QR code" });
+    }
 
     try {
 
@@ -147,7 +164,7 @@ router.post("/mark-attendance", async (req, res) => {
 });
 
 // Live Attendance
-router.get("/live-attendance", async (req, res) => {
+router.get("/live-attendance", authenticateCookie, async (req, res) => {
     const { job_no, unit_no } = req.query;
 
     if (!job_no || !unit_no) {
@@ -155,6 +172,11 @@ router.get("/live-attendance", async (req, res) => {
     }
 
     try {
+        // Visitor names / phone numbers — only LE / GL on that job / unit (PEM: any)
+        if (!(await hasRoleOnJobUnit(req.user, job_no, unit_no, "LE"))) {
+            return res.status(403).json({ success: false, message: `Access denied: you are not LE or above on ${job_no} / ${unit_no}` });
+        }
+
         const result = await pool.query(
             `SELECT name, phone_number, designation, company_name, scan_time
              FROM attendance_logs
@@ -173,15 +195,24 @@ router.get("/live-attendance", async (req, res) => {
 });
 
 // Valid sessions for attendance modal dropdown
-router.get("/valid-sessions", async (req, res) => {
+router.get("/valid-sessions", authenticateCookie, async (req, res) => {
     try {
 
-        // All initiations where today falls in the review date range
+        // Initiations where today falls in the review date range — only those where
+        // the user is LE / GL (they are the ones who run attendance); PEM: all
         const initiations = await pool.query(
-            `SELECT job_no, unit_no, stage
-             FROM model_review_initiations
-             WHERE CURRENT_DATE BETWEEN review_date_from AND review_date_to
-             ORDER BY job_no, unit_no`
+            `SELECT mri.id, mri.job_no, mri.unit_no, mri.stage
+             FROM model_review_initiations mri
+             WHERE CURRENT_DATE BETWEEN mri.review_date_from AND mri.review_date_to
+               AND (UPPER(mri.review_type) = 'EXTERNAL' OR mri.review_type IS NULL)
+               AND ($1 OR EXISTS (
+                   SELECT 1 FROM effective_assignments ua
+                   WHERE UPPER(ua.employee_id) = UPPER($2)
+                     AND ua.job_no = mri.job_no AND ua.unit_no = mri.unit_no
+                     AND (ua.stage = mri.stage OR ua.stage IS NULL)
+                     AND ua.role IN ('GL', 'LE')))
+             ORDER BY mri.job_no, mri.unit_no`,
+            [isPEM(req.user), req.user.employeeId]
         );
 
         const validSessions = [];
@@ -201,10 +232,10 @@ router.get("/valid-sessions", async (req, res) => {
             // Submitted departments
             const submittedResult = await pool.query(
                 `SELECT LOWER(department) AS department
-                 FROM model_reviews
-                 WHERE job_no = $1 AND unit_no = $2 AND stage_name = $3
+                 FROM review_prerequisites_submissions
+                 WHERE initiation_id = $1
                  AND is_locked = true AND LOWER(status) = 'submitted'`,
-                [init.job_no, init.unit_no, init.stage]
+                [init.id]
             );
             const submittedDepts = new Set(submittedResult.rows.map(r => r.department));
 

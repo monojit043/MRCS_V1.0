@@ -5,6 +5,35 @@ const PDFDocument = require("pdfkit");
 const ExcelJS = require("exceljs");
 const fs = require("fs");
 const path = require("path");
+// Reports are opened with window.open (no Bearer token) → signed-in user comes from the
+// shared single sign-on cookie; access needs a role on THAT review (any role; PEM: all).
+const { authenticateCookie } = require("../middleware/auth.middleware");
+const { requireReviewRole, isPEM } = require("../services/reviewAccess");
+
+// crs_reports records WHICH review a CRS was generated for (an external review and a
+// department's internal review can share job / unit / stage). Self-migrating; the old
+// unique (job, unit, stage) is replaced by one per review.
+pool.query(`
+  ALTER TABLE crs_reports ADD COLUMN IF NOT EXISTS review_type TEXT NOT NULL DEFAULT 'EXTERNAL';
+  ALTER TABLE crs_reports ADD COLUMN IF NOT EXISTS department  TEXT NOT NULL DEFAULT '';
+  ALTER TABLE crs_reports DROP CONSTRAINT IF EXISTS crs_reports_unique;
+  CREATE UNIQUE INDEX IF NOT EXISTS crs_reports_unique_per_review
+    ON crs_reports (job_no, unit_no, review_stage, review_type, department);
+`).catch(err => console.error("crs_reports migration:", err.message));
+
+// Which review a report covers.
+//   default (external pages pass nothing)  → the EXTERNAL review
+//   ?reviewType=internal                   → ONE department's internal review: the
+//                                            caller's (PEM may pass ?department=)
+// Without this, a report would mix external and internal tags, or several
+// departments' internal tags, for the same job / unit / stage.
+function reviewScope(req) {
+  if (String(req.query.reviewType || "").toLowerCase() !== "internal") {
+    return { type: "EXTERNAL", dept: "", clause: "AND (UPPER(mri.review_type) = 'EXTERNAL' OR mri.review_type IS NULL)", extra: [] };
+  }
+  const dept = String((isPEM(req.user) && req.query.department) || req.user.department || "").toLowerCase();
+  return { type: "INTERNAL", dept, clause: "AND UPPER(mri.review_type) = 'INTERNAL' AND LOWER(mri.department) = $4", extra: [dept] };
+}
 
 // ===============================
 // LAYOUT CONSTANTS
@@ -34,7 +63,7 @@ const DEPT_COLORS = {
 // ===============================
 // ROUTE
 // ===============================
-router.get("/generate-pdf", async (req, res) => {
+router.get("/generate-pdf", authenticateCookie, requireReviewRole("JE"), async (req, res) => {
     try {
         const { job, unit, stage, reviewType } = req.query;
 
@@ -42,20 +71,19 @@ router.get("/generate-pdf", async (req, res) => {
             return res.status(400).json({ error: "Missing parameters" });
         }
 
-        /* Optional review_type filter — pass reviewType=internal for internal CRS */
-        const rt     = reviewType ? reviewType.toLowerCase() : null;
-        const rtClause = rt ? `AND LOWER(j.review_type) = $4` : '';
-        const params3  = [job, unit, stage];
-        const params4  = rt ? [job, unit, stage, rt] : params3;
+        /* Which review: external (default) or the caller's department's internal review */
+        const scope    = reviewScope(req);
+        const rtClause = scope.clause;
+        const params4  = [job, unit, stage, ...scope.extra];
 
         const pendingCheck = await pool.query(
             `SELECT COUNT(*)
              FROM tags t
              JOIN uploaded_folders uf ON t.folder_id = uf.id
-             JOIN jobs j ON uf.job_id = j.id
-             WHERE j.job_no = $1
-             AND j.unit_no = $2
-             AND j.review_stage = $3
+             JOIN model_review_initiations mri ON uf.initiation_id = mri.id
+             WHERE mri.job_no = $1
+             AND mri.unit_no = $2
+             AND mri.stage = $3
              ${rtClause}
              AND EXISTS (
                  SELECT 1 FROM tag_assignments ta
@@ -88,12 +116,12 @@ router.get("/generate-pdf", async (req, res) => {
 
              FROM tags t
              JOIN uploaded_folders uf ON t.folder_id = uf.id
-             JOIN jobs j ON uf.job_id = j.id
+             JOIN model_review_initiations mri ON uf.initiation_id = mri.id
              JOIN tag_assignments ta ON ta.tag_id = t.id
 
-             WHERE j.job_no = $1
-             AND j.unit_no = $2
-             AND j.review_stage = $3
+             WHERE mri.job_no = $1
+             AND mri.unit_no = $2
+             AND mri.stage = $3
              ${rtClause}
 
              AND NOT EXISTS (
@@ -110,23 +138,23 @@ router.get("/generate-pdf", async (req, res) => {
             return res.status(404).json({ error: "No approved tags found." });
         }
 
-        /* Initiation details — filter by review_type when provided */
+        /* Initiation details — the same review the tags came from */
         const initiationResult = await pool.query(
             `SELECT mri.*, me.employee_name AS created_by_name
              FROM model_review_initiations mri
              LEFT JOIN master_employees me ON me.employee_id = mri.created_by
              WHERE mri.job_no = $1 AND mri.unit_no = $2 AND mri.stage = $3
-             ${rt ? "AND UPPER(mri.review_type) = $4" : ""}`,
-            rt ? [job, unit, stage, rt.toUpperCase()] : [job, unit, stage]
+             ${rtClause}`,
+            params4
         );
         const initiation = initiationResult.rows[0] || null;
 
-        // Record CRS generation BEFORE streaming so errors are catchable
+        // Record CRS generation (for THIS review) BEFORE streaming so errors are catchable
         await pool.query(
-            `INSERT INTO crs_reports (job_no, unit_no, review_stage)
-             VALUES ($1, $2, $3)
+            `INSERT INTO crs_reports (job_no, unit_no, review_stage, review_type, department)
+             VALUES ($1, $2, $3, $4, $5)
              ON CONFLICT DO NOTHING`,
-            [job, unit, stage]
+            [job, unit, stage, scope.type, scope.dept]
         );
 
         const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0, autoFirstPage: true });
@@ -164,12 +192,19 @@ router.get("/generate-pdf", async (req, res) => {
     }
 });
 
-router.get("/report-options", async (req, res) => {
+// Only reviews the user is assigned to (PEM: all)
+router.get("/report-options", authenticateCookie, async (req, res) => {
     const result = await pool.query(`
-        SELECT DISTINCT job_no, unit_no, review_stage
-        FROM jobs
-        ORDER BY job_no
-    `);
+        SELECT DISTINCT mri.job_no, mri.unit_no, mri.stage AS review_stage
+        FROM model_review_initiations mri
+        WHERE (UPPER(mri.review_type) = 'EXTERNAL' OR mri.review_type IS NULL)   -- external CRS page
+          AND ($1 OR EXISTS (
+            SELECT 1 FROM effective_assignments ua
+            WHERE UPPER(ua.employee_id) = UPPER($2)
+              AND ua.job_no = mri.job_no AND ua.unit_no = mri.unit_no
+              AND (ua.stage = mri.stage OR ua.stage IS NULL)))
+        ORDER BY mri.job_no
+    `, [isPEM(req.user), req.user.employeeId]);
     res.json(result.rows);
 });
 
@@ -690,7 +725,10 @@ function drawDeptBadge(doc, text, x, y, containerHeight = 48) {
 const ANNEXURE_DISCLAIMER =
     "This is not a Comments Resolution Sheet (CRS). It is a report of all tags taken during the review, provided as an annexure to other project documentation.";
 
-async function fetchAllTagsForExport(jobNo, unitNo, stage) {
+// scope = reviewScope(req): the external review, or one department's internal review
+async function fetchAllTagsForExport(jobNo, unitNo, stage, scope) {
+    const rtClause = scope.clause;
+    const params = [jobNo, unitNo, stage, ...scope.extra];
     const result = await pool.query(
         `SELECT
             t.tag_no,
@@ -703,29 +741,30 @@ async function fetchAllTagsForExport(jobNo, unitNo, stage) {
             t.original_snap_path
          FROM tags t
          JOIN uploaded_folders uf ON t.folder_id = uf.id
-         JOIN jobs j ON uf.job_id = j.id
+         JOIN model_review_initiations mri ON uf.initiation_id = mri.id
          LEFT JOIN tag_assignments ta ON ta.tag_id = t.id
-         WHERE j.job_no = $1
-           AND j.unit_no = $2
-           AND j.review_stage = $3
+         WHERE mri.job_no = $1
+           AND mri.unit_no = $2
+           AND mri.stage = $3
+           ${rtClause}
          ORDER BY
            CASE WHEN t.tag_no ~ '^[0-9]+$' THEN t.tag_no::bigint END ASC NULLS LAST,
            t.tag_no ASC,
            ta.department ASC NULLS LAST`,
-        [jobNo, unitNo, stage]
+        params
     );
     return result.rows;
 }
 
-router.get("/export-all-tags", async (req, res) => {
+router.get("/export-all-tags", authenticateCookie, requireReviewRole("JE"), async (req, res) => {
     try {
-        const { jobNo, unitNo, stage } = req.query;
+        const { jobNo, unitNo, stage, reviewType } = req.query;
 
         if (!jobNo || !unitNo || !stage) {
             return res.status(400).json({ error: "Missing parameters: jobNo, unitNo, stage" });
         }
 
-        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage);
+        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage, reviewScope(req));
 
         if (tags.length === 0) {
             return res.status(404).json({ error: "No tags found for the selected review." });
@@ -776,15 +815,15 @@ router.get("/export-all-tags", async (req, res) => {
 // ===============================
 // EXPORT ALL TAGS — Excel
 // ===============================
-router.get("/export-all-tags-excel", async (req, res) => {
+router.get("/export-all-tags-excel", authenticateCookie, requireReviewRole("JE"), async (req, res) => {
     try {
-        const { jobNo, unitNo, stage } = req.query;
+        const { jobNo, unitNo, stage, reviewType } = req.query;
 
         if (!jobNo || !unitNo || !stage) {
             return res.status(400).json({ error: "Missing parameters: jobNo, unitNo, stage" });
         }
 
-        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage);
+        const tags = await fetchAllTagsForExport(jobNo, unitNo, stage, reviewScope(req));
 
         if (tags.length === 0) {
             return res.status(404).json({ error: "No tags found for the selected review." });

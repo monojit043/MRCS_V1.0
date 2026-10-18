@@ -1,28 +1,28 @@
 const pool = require("../data/db");
 const { loadZones, detectZone } = require("./zoneDetector");
 
-const recalculateZones = async (jobId) => {
+const recalculateZones = async (initiationId) => {
 
     try {
 
-        // 🔹 1. Load all zones for this job
-        const zones = await loadZones(jobId);
+        // 🔹 1. Load all zones for this initiation
+        const zones = await loadZones(initiationId);
 
         if (!zones || zones.length === 0) {
-            console.log("No zones defined for job:", jobId);
+            console.log("No zones defined for initiation:", initiationId);
             return;
         }
 
-        // 🔹 2. Load all tags belonging to this job
+        // 🔹 2. Load all tags belonging to this initiation
         const tagQuery = `
             SELECT t.id, t.tag_x, t.tag_y
             FROM tags t
             JOIN uploaded_folders f
             ON t.folder_id = f.id
-            WHERE f.job_id = $1
+            WHERE f.initiation_id = $1
         `;
 
-        const tagResult = await pool.query(tagQuery, [jobId]);
+        const tagResult = await pool.query(tagQuery, [initiationId]);
 
         const tags = tagResult.rows;
 
