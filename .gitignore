@@ -20,3 +20,6 @@ backend/db_backups/
 
 # Generated admin SQL containing employee names / emails (run on PC-2, not for git)
 backend/sql/pc2_eil_employees_*.sql
+
+# Claude Code settings for this PC (not part of MRCS)
+.claude/
